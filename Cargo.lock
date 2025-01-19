@@ -1041,7 +1041,9 @@ checksum = "953ec861398dccce10c670dfeaf3ec4911ca479e9c02154b3a215178c5f566f2"
 
 [[package]]
 name = "post-archiver"
-version = "0.1.8"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f71d31cd33433f34bb024a448e497b0b84890ef8fe99c2526ebd3f7adb19ed1"
 dependencies = [
  "chrono",
  "serde",

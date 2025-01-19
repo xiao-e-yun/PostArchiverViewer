@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-post-archiver = { path = "../post-archiver" }
+post-archiver = "0.2.3"
 axum = "0.8.1"
 axum-reverse-proxy = "0.5.1"
 mime_guess = "2.0.5"
