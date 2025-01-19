@@ -1,5 +1,12 @@
 # Post-Archiver-Viewer
 
+To view `Post Archiver`  
+
+## Preview
+Author List
+![preview](preview.png)
+Post
+![preview](preview-1.png)
 
 ## Debug or Build
 Frontend
