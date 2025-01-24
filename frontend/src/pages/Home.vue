@@ -1,7 +1,9 @@
 <script lang="ts" setup>
+import Image from '@/components/image/Image.vue';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import type { AuthorsAPI } from '@/types';
+import { ImageOff } from 'lucide-vue-next';
 import { ofetch } from 'ofetch';
 import { RouterLink } from 'vue-router';
 
@@ -24,9 +26,9 @@ const authors = await ofetch<AuthorsAPI>("/api/authors");
             <Badge v-if="author.links.length > 3">...</Badge>
           </CardFooter>
         </div>
-        <img :src="author.thumb.url" :width="author.thumb.extra.width" :height="author.thumb.extra.height"
-          class="absolute inset-0 object-cover max-h-full max-w-full rounded-lg m-auto " decoding="async"
-          loading="lazy">
+        <Image v-if="author.thumb" :src="author.thumb.url" format="webp"
+          class="absolute inset-0 object-cover max-h-full w-full rounded-lg" />
+        <ImageOff v-else class="absolute inset-0 w-full h-full p-4" :stroke-width="0.5" />
       </Card>
     </RouterLink>
   </div>

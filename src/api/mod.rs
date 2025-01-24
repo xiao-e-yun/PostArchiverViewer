@@ -10,10 +10,12 @@ use axum::{
     routing::get,
     Json, Router,
 };
+use mime_guess::{mime::MimeIter, Mime};
 use post_archiver::{AuthorId, Comment, Content, FileMetaId, PostId};
 use rusqlite::{Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use tower_http::cors::CorsLayer;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -25,10 +27,11 @@ impl AppState {
     pub fn conn(&self) -> std::sync::MutexGuard<Connection> {
         self.conn.lock().unwrap()
     }
-    pub fn static_url(&self) -> String {
+    pub fn static_url(&self, mime: &str) -> String {
+
         match &self.static_server_url {
             Some(url) => url.clone(),
-            None => "/archive".to_string(),
+            None => if mime.starts_with("image/") { "/images" } else { "/resource" }.to_string(),
         }
     }
 }
@@ -107,7 +110,7 @@ async fn get_file_metas_api(State(state): State<AppState>) -> APIResponse<Vec<Va
         let post = PostId(row.get_unwrap(3));
         let mime = row.get_unwrap::<_, String>(4);
         let extra: Value = serde_json::from_str(&row.get_unwrap::<_, String>(5)).unwrap();
-        let url = format!("{}/{}/{}/{}", state.static_url(), author, post, filename);
+        let url = format!("{}/{}/{}/{}", state.static_url(&mime), author, post, filename);
 
         data.push(json!({
             "id":id,
@@ -254,7 +257,7 @@ fn get_file_meta(
             let post = PostId(row.get_unwrap(3));
             let mime = row.get_unwrap::<_, String>(4);
             let extra: Value = serde_json::from_str(&row.get_unwrap::<_, String>(5)).unwrap();
-            let url = format!("{}/{}/{}/{}", state.static_url(), author, post, filename);
+            let url = format!("{}/{}/{}/{}", state.static_url(&mime), author, post, filename);
 
             Ok(json!({
                 "id":id,

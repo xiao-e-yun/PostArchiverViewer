@@ -40,3 +40,11 @@ const links = [
     </main>
   </div>
 </template>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@300..700&family=Overpass:wght@500&display=swap');
+
+body {
+  font-family: 'Comfortaa', sans-serif;
+}
+</style>

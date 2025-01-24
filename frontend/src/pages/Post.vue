@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import Image from '@/components/image/Image.vue';
 import { Badge } from '@/components/ui/badge';
 import Card from '@/components/ui/card/Card.vue';
 import { Separator } from '@/components/ui/separator';
@@ -30,8 +31,10 @@ if (textList.length) contents.push(textList.join(""));
 
 function getStyleByFileExtra(extra: File["extra"]) {
   if (!hasExtra(extra)) return {};
+  const width = parseInt(extra.width as string);
+  const height = parseInt(extra.height as string);
   return {
-    aspectRatio: `${extra.width}/${extra.height}`,
+    aspectRatio: width / height,
   };
 }
 function hasExtra(extra: File["extra"]) {
@@ -68,12 +71,14 @@ function hasExtra(extra: File["extra"]) {
     <div class="flex flex-col gap-4 pt-4 lg:w-[1024px] mx-auto" :class="$style.content">
       <template v-for="content in contents">
         <div v-if="typeof content === 'string'" v-html="content" />
-        <Card v-else class="m-auto overflow-hidden max-h-[80vh] max-w-full relative" :style="getStyleByFileExtra(content.extra)">
+        <Card v-else class="m-auto overflow-hidden max-h-[80vh] max-w-full relative"
+          :style="getStyleByFileExtra(content.extra)">
 
           <svg v-if="hasExtra(content.extra)" :width="content.extra.width" :height="content.extra.height" />
 
-          <img v-if="content.mime.startsWith('image')" :src="content.url" decoding="async" loading="lazy"
-            class="object-cover max-h-[80vh] w-auto absolute inset-0" />
+          <Image v-if="content.mime.startsWith('image')" :src="content.url" :width="50"
+            :aspect="getStyleByFileExtra(content.extra).aspectRatio"
+            class="object-cover max-h-[80vh] w-full absolute inset-0"></Image>
 
           <video v-else-if="content.mime.startsWith('video')" :src="content.url" controls />
 

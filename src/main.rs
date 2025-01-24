@@ -1,22 +1,20 @@
 mod api;
+pub mod frontend;
+pub mod resource;
+pub mod images;
 
 use api::get_api_router;
-use axum::{
-    http::{header, StatusCode, Uri},
-    response::{Html, IntoResponse, Response},
-    routing::Router,
-};
-use axum_reverse_proxy::ReverseProxy;
-use rust_embed::Embed;
+use frontend::frontend;
+use images::get_images_router;
+use resource::get_resource_router;
 use std::{net::SocketAddr, path::PathBuf};
-use tower_http::services::ServeDir;
+use tower::ServiceBuilder;
+use tower_http::{
+    compression::CompressionLayer,
+    cors::{Any, CorsLayer},
+    trace::TraceLayer,
+};
 use tracing::info;
-
-static INDEX_HTML: &str = "index.html";
-
-#[derive(Embed)]
-#[folder = "frontend/dist/"]
-struct Assets;
 
 #[tokio::main]
 async fn main() {
@@ -25,62 +23,25 @@ async fn main() {
     let archiver_path = PathBuf::from("archiver");
     let static_server_url: Option<String> = None;
 
-    let api = get_api_router(&archiver_path,static_server_url.clone());
+    let images_router = get_images_router(&archiver_path);
+    let resource_router = get_resource_router(&archiver_path);
+    let api_router = get_api_router(&archiver_path, static_server_url.clone());
 
-    let static_server = {
-        let router = Router::new();
-        // if static_server_url is None, serve the files from the local directory
-        if static_server_url.is_none() {
-            info!("Serving static files from /archive/*");
-            let service = ServeDir::new(archiver_path);
-            router.fallback_service(service)
-        } else {
-            router.fallback(StatusCode::FORBIDDEN)
-        }
-    };
+    let app = frontend()
+        .nest("/api", api_router)
+        .nest("/images", images_router)
+        .nest("/resource", resource_router)
 
-    let mut app = Router::new()
-        .nest("/api", api)
-        .nest("/archive", static_server);
-    app = if cfg!(debug_assertions) {
-        let proxy: ReverseProxy = ReverseProxy::new("/", "http://localhost:5173");
-        info!("Running in debug mode");
-        info!("Proxying to localhost:5173");
-        app.merge(proxy)
-    } else {
-        app.fallback(static_handler)
-    };
+        .layer(
+            ServiceBuilder::new()
+                .layer(TraceLayer::new_for_http())
+                .layer(CorsLayer::new().allow_origin(Any))
+                .layer(CompressionLayer::new())
+        );
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     info!("Listening on http://{}", addr);
 
     axum::serve(listener, app).await.unwrap();
-}
-
-async fn static_handler(uri: Uri) -> impl IntoResponse {
-    let path = uri.path().trim_start_matches('/');
-
-    if path.is_empty() || path == INDEX_HTML {
-        return index_html().await;
-    }
-
-    return match Assets::get(path) {
-        Some(content) => {
-            let mime = mime_guess::from_path(path).first_or_octet_stream();
-            ([(header::CONTENT_TYPE, mime.as_ref())], content.data).into_response()
-        }
-        None => {
-            if path.contains('.') {
-                return (StatusCode::NOT_FOUND, "404").into_response();
-            }
-
-            index_html().await
-        }
-    };
-
-    async fn index_html() -> Response {
-        let file = Assets::get(INDEX_HTML).unwrap();
-        Html(file.data).into_response()
-    }
 }

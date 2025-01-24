@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import Image from '@/components/image/Image.vue';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -31,8 +32,7 @@ const posts = await ofetch<PostsAPI>("/api/posts", { query: { author: pageAuthor
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       <RouterLink v-for="post in posts" :to="`/post/${post.id}`">
         <Card class="transition-transform hover:scale-105 hover:z-10 relative w-full h-full overflow-hidden">
-          <img v-if="post.thumb" :src="post.thumb.url" loading="lazy" decoding="async" :width="post.thumb.extra.width"
-            :height="post.thumb.extra.height" class="aspect-square object-cover" />
+          <Image v-if="post.thumb" :src="post.thumb.url" :aspect="1/1" :width="30" class="aspect-square w-full object-cover" />
           <div v-else class="aspect-square">
             <ImageOff class="w-full h-full p-4" :stroke-width="0.5" />
           </div>
