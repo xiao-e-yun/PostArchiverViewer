@@ -29,7 +29,11 @@ async fn provide_images(
     Query(query): Query<HashMap<String, String>>,
     uri: Uri,
 ) -> Result<(HeaderMap, Bytes), StatusCode> {
-    let path = safe_path::scoped_join(root, uri.path()).unwrap();
+    let path = path_clean::clean(uri.path());
+    
+    let Ok(path) =  path.strip_prefix("/") else { return Err(StatusCode::BAD_REQUEST); };
+    
+    let path = root.join(&path);
 
     if !path.exists() {
         return Err(StatusCode::NOT_FOUND);
