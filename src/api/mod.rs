@@ -220,7 +220,7 @@ async fn get_post_api(
         .query_row([query.post], |row| {
             let id = PostId(row.get_unwrap(0));
             let author = AuthorId(row.get_unwrap(1));
-            let source: String = row.get_unwrap(2);
+            let source: Option<String> = row.get_unwrap(2);
             let title: String = row.get_unwrap(3);
             let content: Vec<Content> =
                 serde_json::from_str(&row.get_unwrap::<_, String>(4)).unwrap_or_default();
