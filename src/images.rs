@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs, path::PathBuf};
+use std::{collections::HashMap, fs};
 
 use axum::{
     body::Bytes,
@@ -15,22 +15,29 @@ use image::{
     ColorType, ImageEncoder, ImageFormat,
 };
 use mime_guess::MimeGuess;
+use tracing::info;
 
-pub fn get_images_router<P: AsRef<std::path::Path>>(path: P) -> Router {
-    let cache = CacheLayer::with_lifespan(86400);
+use crate::config::Config;
 
-    let path = path.as_ref().to_path_buf().canonicalize().unwrap();
+pub fn get_images_router(config: &Config) -> Router {
+    if config.images_url.is_some() {
+        info!("Images URL is set, disabling images router");
+        return Router::new().fallback(|| async { StatusCode::FORBIDDEN });
+    }
+
+    let cache = CacheLayer::with_lifespan(24 * 60 * 60);
     Router::new()
         .fallback(provide_images)
-        .with_state(path)
+        .with_state(config.clone())
         .layer(cache)
 }
 
 async fn provide_images(
-    State(root): State<PathBuf>,
+    State(config): State<Config>,
     Query(query): Query<HashMap<String, String>>,
     uri: Uri,
 ) -> Result<(HeaderMap, Bytes), StatusCode> {
+    let root = &config.path;
     let path = path_clean::clean(uri.path());
 
     let Ok(path) = path.strip_prefix("/") else {

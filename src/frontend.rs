@@ -43,7 +43,7 @@ async fn static_handler(uri: Uri) -> impl IntoResponse {
         }
         None => {
             if path.contains('.') {
-                return (axum::http::StatusCode::NOT_FOUND, "404").into_response();
+                return axum::http::StatusCode::NOT_FOUND.into_response();
             }
 
             index_html().await

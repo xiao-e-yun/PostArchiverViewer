@@ -1,7 +1,4 @@
-use std::{
-    path::PathBuf,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
 use axum::{
     extract::{Query, State},
@@ -15,10 +12,12 @@ use rusqlite::{Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
+use crate::config::Config;
+
 #[derive(Clone)]
 pub struct AppState {
     conn: Arc<Mutex<Connection>>,
-    static_server_url: Option<String>,
+    config: Config,
 }
 
 impl AppState {
@@ -26,14 +25,25 @@ impl AppState {
         self.conn.lock().unwrap()
     }
     pub fn static_url(&self, mime: &str) -> String {
-        match &self.static_server_url {
-            Some(url) => url.clone(),
-            None => if mime.starts_with("image/") {
-                "/images"
-            } else {
-                "/resource"
-            }
-            .to_string(),
+        let resource_url = self
+            .config
+            .resource_url
+            .clone()
+            .unwrap_or("/resource".to_string());
+        let images_url = self
+            .config
+            .images_url
+            .clone()
+            .unwrap_or("/images".to_string());
+
+        let url = match mime.starts_with("image/") {
+            true => images_url,
+            false => resource_url
+        };
+
+        match url.strip_suffix('/') {
+            Some(url) => url.to_string(),
+            None => url,
         }
     }
 }
@@ -49,11 +59,12 @@ impl<T: Serialize> IntoResponse for APIResponse<T> {
     }
 }
 
-pub fn get_api_router(archiver_path: &PathBuf, static_server_url: Option<String>) -> Router {
-    let conn = Connection::open(archiver_path.join("post-archiver.db")).unwrap();
+pub fn get_api_router(config: &Config) -> Router {
+    let path = config.path.clone();
+    let conn = Connection::open(path.join("post-archiver.db")).unwrap();
     let conn = Arc::new(Mutex::new(conn));
     let state = AppState {
-        static_server_url,
+        config: config.clone(),
         conn,
     };
 

@@ -1,31 +1,37 @@
 mod api;
+pub mod config;
 pub mod frontend;
 pub mod images;
 pub mod resource;
 
 use api::get_api_router;
+use clap::Parser;
+use config::Config;
 use frontend::frontend;
 use images::get_images_router;
 use resource::get_resource_router;
-use std::{net::SocketAddr, path::PathBuf};
+use std::net::SocketAddr;
 use tower::ServiceBuilder;
 use tower_http::{
     compression::CompressionLayer,
     cors::{Any, CorsLayer},
     trace::TraceLayer,
 };
-use tracing::info;
+use tracing::{info,error};
 
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt::init();
+    let config = Config::parse();
 
-    let archiver_path = PathBuf::from("archiver");
-    let static_server_url: Option<String> = None;
+    if !config.path.join("post-archiver.db").exists() {
+        error!("Post Archiver is not found");
+        return;
+    }
 
-    let images_router = get_images_router(&archiver_path);
-    let resource_router = get_resource_router(&archiver_path);
-    let api_router = get_api_router(&archiver_path, static_server_url.clone());
+    let images_router = get_images_router(&config);
+    let resource_router = get_resource_router(&config);
+    let api_router = get_api_router(&config);
 
     let app = frontend()
         .nest("/api", api_router)
@@ -38,9 +44,10 @@ async fn main() {
                 .layer(CompressionLayer::new()),
         );
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
+    let port = config.port;
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    info!("Listening on http://{}", addr);
+    info!("Listening on http://localhost:{}", port);
 
     axum::serve(listener, app).await.unwrap();
 }
