@@ -1,7 +1,7 @@
 mod api;
 pub mod frontend;
-pub mod resource;
 pub mod images;
+pub mod resource;
 
 use api::get_api_router;
 use frontend::frontend;
@@ -31,12 +31,11 @@ async fn main() {
         .nest("/api", api_router)
         .nest("/images", images_router)
         .nest("/resource", resource_router)
-
         .layer(
             ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())
                 .layer(CorsLayer::new().allow_origin(Any))
-                .layer(CompressionLayer::new())
+                .layer(CompressionLayer::new()),
         );
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));

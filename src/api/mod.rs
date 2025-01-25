@@ -275,7 +275,8 @@ async fn get_post_tags_api(
             "SELECT * FROM tags 
             JOIN post_tags ON post_tags.tag = tags.id
             WHERE post_tags.post = ?",
-        ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        )
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let mut rows = stmt.query([query.post]).unwrap();
 
     let mut data = Vec::new();
@@ -283,24 +284,18 @@ async fn get_post_tags_api(
         let id = row.get_unwrap(0);
         let name = row.get_unwrap::<_, String>(1);
 
-        data.push(Tag {
-            id,
-            name,
-        });
+        data.push(Tag { id, name });
     }
 
     Ok(APIResponse { data })
 }
 
-async fn get_tags_api(
-    State(state): State<AppState>,
-) -> Result<APIResponse<Vec<Tag>>, StatusCode> {
+async fn get_tags_api(State(state): State<AppState>) -> Result<APIResponse<Vec<Tag>>, StatusCode> {
     let conn = state.conn();
 
     let mut stmt = conn
-        .prepare_cached(
-            "SELECT * FROM tags;",
-        ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .prepare_cached("SELECT * FROM tags;")
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let mut rows = stmt.query([]).unwrap();
 
     let mut data = Vec::new();
@@ -308,10 +303,7 @@ async fn get_tags_api(
         let id = row.get_unwrap(0);
         let name = row.get_unwrap::<_, String>(1);
 
-        data.push(Tag {
-            id,
-            name,
-        });
+        data.push(Tag { id, name });
     }
 
     Ok(APIResponse { data })

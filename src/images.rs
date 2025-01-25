@@ -7,7 +7,9 @@ use axum::{
     Router,
 };
 use axum_response_cache::CacheLayer;
-use fast_image_resize::{images::Image, FilterType, IntoImageView, ResizeAlg, ResizeOptions, Resizer};
+use fast_image_resize::{
+    images::Image, FilterType, IntoImageView, ResizeAlg, ResizeOptions, Resizer,
+};
 use image::{
     codecs::{jpeg::JpegEncoder, png::PngEncoder, webp::WebPEncoder},
     ColorType, ImageEncoder, ImageFormat,
@@ -30,9 +32,11 @@ async fn provide_images(
     uri: Uri,
 ) -> Result<(HeaderMap, Bytes), StatusCode> {
     let path = path_clean::clean(uri.path());
-    
-    let Ok(path) =  path.strip_prefix("/") else { return Err(StatusCode::BAD_REQUEST); };
-    
+
+    let Ok(path) = path.strip_prefix("/") else {
+        return Err(StatusCode::BAD_REQUEST);
+    };
+
     let path = root.join(&path);
 
     if !path.exists() {
