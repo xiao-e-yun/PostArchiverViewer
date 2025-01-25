@@ -30,7 +30,7 @@ jobs:
 
       - name: Build frontend
         working-directory: frontend
-        run: bun build
+        run: bun run build
       
       - name: Upload frontend
         uses: actions/upload-artifact@v4
@@ -56,7 +56,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: frontend
-          path: frontend/dist
+          # path: frontend/dist
 
       # selecting a toolchain either by action or manual `rustup` calls should happen
       # before the plugin, as the cache uses the current rustc version as its cache key
