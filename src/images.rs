@@ -1,14 +1,13 @@
-use std::{collections::HashMap, fs, io::Cursor, path::PathBuf};
+use std::{collections::HashMap, fs, path::PathBuf};
 
 use axum::{
     body::Bytes,
     extract::{Query, State},
     http::{HeaderMap, HeaderValue, StatusCode, Uri},
-    response::IntoResponse,
     Router,
 };
 use axum_response_cache::CacheLayer;
-use fast_image_resize::{images::Image, IntoImageView, ResizeOptions, Resizer};
+use fast_image_resize::{images::Image, FilterType, IntoImageView, ResizeAlg, ResizeOptions, Resizer};
 use image::{
     codecs::{jpeg::JpegEncoder, png::PngEncoder, webp::WebPEncoder},
     ColorType, ImageEncoder, ImageFormat,
@@ -93,9 +92,15 @@ async fn provide_images(
 
     let mut resizer = Resizer::new();
 
+    let algorithm = if cfg!(debug_assertions) {
+        ResizeAlg::Nearest
+    } else {
+        ResizeAlg::Convolution(FilterType::Lanczos3)
+    };
     let options = ResizeOptions::new()
-        .resize_alg(fast_image_resize::ResizeAlg::Nearest)
+        .resize_alg(algorithm)
         .fit_into_destination(Some((0.5, 0.5)));
+
     resizer
         .resize(&image, &mut dst_image, Some(&options))
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
