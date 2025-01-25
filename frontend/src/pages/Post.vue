@@ -3,7 +3,7 @@ import Image from '@/components/image/Image.vue';
 import { Badge } from '@/components/ui/badge';
 import Card from '@/components/ui/card/Card.vue';
 import { Separator } from '@/components/ui/separator';
-import type { AuthorsAPI, File, PostAPI } from '@/types';
+import type { AuthorsAPI, File, PostAPI, TagsAPI } from '@/types';
 import { ChevronLeft } from 'lucide-vue-next';
 import { marked } from 'marked';
 import { ofetch } from 'ofetch';
@@ -41,6 +41,8 @@ function hasExtra(extra: File["extra"]) {
   return extra && (extra.width || extra.height);
 }
 
+const tags = await ofetch<TagsAPI>("/api/post/tags", { query: { post: pagePostId } });
+
 // TODO COMMENT
 </script>
 
@@ -50,14 +52,14 @@ function hasExtra(extra: File["extra"]) {
       <ChevronLeft /> <span class="font-bold">{{ author.name }}</span>
     </RouterLink>
     <div>
-      <h1 class="md:text-4xl text-2xl mt-4 font-bold text-center">{{ post.title }}</h1>
+      <h1 class="md:text-4xl text-2xl mt-4 font-bold text-center capitalize">{{ post.title }}</h1>
 
       <div class="flex gap-2 my-4">
         <RouterLink v-if="author" :to="`/author/${author.id}`">
           <Badge title="Author">{{ author.name }}</Badge>
         </RouterLink>
         <a v-if="post.source" :href="post.source">
-          <Badge variant="secondary">Source</Badge>
+          <Badge variant="secondary">source</Badge>
         </a>
       </div>
       <div class="flex gap-2 my-4">
@@ -65,6 +67,7 @@ function hasExtra(extra: File["extra"]) {
           Date(post.updated).toLocaleString() }}</Badge>
         <Badge class="bg-rose-300 dark:bg-rose-500" variant="secondary" title="Published">{{ new
           Date(post.published).toLocaleString() }}</Badge>
+        <Badge v-for="tag in tags" variant="secondary">{{ tag.name }}</Badge>
       </div>
     </div>
     <Separator class="my-4" />

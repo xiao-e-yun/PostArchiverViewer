@@ -10,12 +10,10 @@ use axum::{
     routing::get,
     Json, Router,
 };
-use mime_guess::{mime::MimeIter, Mime};
-use post_archiver::{AuthorId, Comment, Content, FileMetaId, PostId};
+use post_archiver::{AuthorId, Comment, Content, FileMetaId, PostId, Tag};
 use rusqlite::{Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use tower_http::cors::CorsLayer;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -28,10 +26,14 @@ impl AppState {
         self.conn.lock().unwrap()
     }
     pub fn static_url(&self, mime: &str) -> String {
-
         match &self.static_server_url {
             Some(url) => url.clone(),
-            None => if mime.starts_with("image/") { "/images" } else { "/resource" }.to_string(),
+            None => if mime.starts_with("image/") {
+                "/images"
+            } else {
+                "/resource"
+            }
+            .to_string(),
         }
     }
 }
@@ -59,8 +61,10 @@ pub fn get_api_router(archiver_path: &PathBuf, static_server_url: Option<String>
         .route("/authors", get(get_authors_api))
         .route("/posts", get(get_posts_api))
         .route("/post", get(get_post_api))
+        .route("/post/tags", get(get_post_tags_api))
         .route("/files", get(get_file_metas_api))
-        .route("/info", get(info_api))
+        .route("/tags", get(get_tags_api))
+        .route("/info", get(get_info_api))
         .fallback(StatusCode::NOT_FOUND)
         .with_state(state)
 }
@@ -69,7 +73,9 @@ async fn get_authors_api(
     State(state): State<AppState>,
 ) -> Result<APIResponse<Vec<Value>>, StatusCode> {
     let conn = state.conn();
-    let mut stmt = conn.prepare_cached("SELECT * FROM authors ORDER BY updated DESC").unwrap();
+    let mut stmt = conn
+        .prepare_cached("SELECT * FROM authors ORDER BY updated DESC")
+        .unwrap();
     let mut rows = stmt.query([]).unwrap();
 
     let mut data = Vec::new();
@@ -99,7 +105,9 @@ async fn get_authors_api(
 
 async fn get_file_metas_api(State(state): State<AppState>) -> APIResponse<Vec<Value>> {
     let conn = state.conn();
-    let mut stmt = conn.prepare_cached("SELECT * FROM file_metas ORDER BY updated DESC").unwrap();
+    let mut stmt = conn
+        .prepare_cached("SELECT * FROM file_metas ORDER BY updated DESC")
+        .unwrap();
     let mut rows = stmt.query([]).unwrap();
 
     let mut data = Vec::new();
@@ -110,7 +118,13 @@ async fn get_file_metas_api(State(state): State<AppState>) -> APIResponse<Vec<Va
         let post = PostId(row.get_unwrap(3));
         let mime = row.get_unwrap::<_, String>(4);
         let extra: Value = serde_json::from_str(&row.get_unwrap::<_, String>(5)).unwrap();
-        let url = format!("{}/{}/{}/{}", state.static_url(&mime), author, post, filename);
+        let url = format!(
+            "{}/{}/{}/{}",
+            state.static_url(&mime),
+            author,
+            post,
+            filename
+        );
 
         data.push(json!({
             "id":id,
@@ -126,12 +140,18 @@ async fn get_file_metas_api(State(state): State<AppState>) -> APIResponse<Vec<Va
     APIResponse { data }
 }
 
-async fn info_api(State(state): State<AppState>) -> APIResponse<Value> {
+async fn get_info_api(State(state): State<AppState>) -> APIResponse<Value> {
     let conn = state.conn();
 
-    let count_authors: u32 = conn.query_row("SELECT COUNT(*) FROM authors", [], |row| row.get(0)).unwrap();
-    let count_posts: u32 = conn.query_row("SELECT COUNT(*) FROM posts", [], |row| row.get(0)).unwrap();
-    let count_files: u32 = conn.query_row("SELECT COUNT(*) FROM file_metas", [], |row| row.get(0)).unwrap();
+    let count_authors: u32 = conn
+        .query_row("SELECT COUNT(*) FROM authors", [], |row| row.get(0))
+        .unwrap();
+    let count_posts: u32 = conn
+        .query_row("SELECT COUNT(*) FROM posts", [], |row| row.get(0))
+        .unwrap();
+    let count_files: u32 = conn
+        .query_row("SELECT COUNT(*) FROM file_metas", [], |row| row.get(0))
+        .unwrap();
 
     APIResponse {
         data: json!({
@@ -218,7 +238,9 @@ async fn get_post_api(
                 })
             }
 
-            let thumb = thumb.map(|id| get_file_meta(&state, &conn, id)).transpose()?;
+            let thumb = thumb
+                .map(|id| get_file_meta(&state, &conn, id))
+                .transpose()?;
 
             Ok(json!({
                 "id":id,
@@ -242,6 +264,59 @@ async fn get_post_api(
     Ok(APIResponse { data })
 }
 
+async fn get_post_tags_api(
+    Query(query): Query<PostQuery>,
+    State(state): State<AppState>,
+) -> Result<APIResponse<Vec<Tag>>, StatusCode> {
+    let conn = state.conn();
+
+    let mut stmt = conn
+        .prepare_cached(
+            "SELECT * FROM tags 
+            JOIN post_tags ON post_tags.tag = tags.id
+            WHERE post_tags.post = ?",
+        ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let mut rows = stmt.query([query.post]).unwrap();
+
+    let mut data = Vec::new();
+    while let Some(row) = rows.next().unwrap() {
+        let id = row.get_unwrap(0);
+        let name = row.get_unwrap::<_, String>(1);
+
+        data.push(Tag {
+            id,
+            name,
+        });
+    }
+
+    Ok(APIResponse { data })
+}
+
+async fn get_tags_api(
+    State(state): State<AppState>,
+) -> Result<APIResponse<Vec<Tag>>, StatusCode> {
+    let conn = state.conn();
+
+    let mut stmt = conn
+        .prepare_cached(
+            "SELECT * FROM tags;",
+        ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let mut rows = stmt.query([]).unwrap();
+
+    let mut data = Vec::new();
+    while let Some(row) = rows.next().unwrap() {
+        let id = row.get_unwrap(0);
+        let name = row.get_unwrap::<_, String>(1);
+
+        data.push(Tag {
+            id,
+            name,
+        });
+    }
+
+    Ok(APIResponse { data })
+}
+
 fn get_file_meta(
     state: &AppState,
     conn: &rusqlite::Connection,
@@ -257,7 +332,13 @@ fn get_file_meta(
             let post = PostId(row.get_unwrap(3));
             let mime = row.get_unwrap::<_, String>(4);
             let extra: Value = serde_json::from_str(&row.get_unwrap::<_, String>(5)).unwrap();
-            let url = format!("{}/{}/{}/{}", state.static_url(&mime), author, post, filename);
+            let url = format!(
+                "{}/{}/{}/{}",
+                state.static_url(&mime),
+                author,
+                post,
+                filename
+            );
 
             Ok(json!({
                 "id":id,
