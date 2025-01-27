@@ -32,11 +32,13 @@ const links = [
       </div>
     </header>
     <main class="md:p-8 p-4">
-      <KeepAlive>
-        <Suspense>
-          <RouterView />
-        </Suspense>
-      </KeepAlive>
+      <RouterView v-slot="{ Component }">
+        <KeepAlive>
+          <Suspense>
+            <component :is="Component" />
+          </Suspense>
+        </KeepAlive>
+      </RouterView>
     </main>
   </div>
 </template>

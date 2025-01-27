@@ -2,12 +2,13 @@
 import Image from '@/components/image/Image.vue';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import type { AuthorsAPI } from '@/types';
+import type { AuthorsAPI } from '@/api';
+import { useFetch } from '@vueuse/core';
 import { ImageOff } from 'lucide-vue-next';
-import { ofetch } from 'ofetch';
 import { RouterLink } from 'vue-router';
 
-const authors = await ofetch<AuthorsAPI>("/api/authors");
+const { data: authors } = await useFetch("/api/authors").json<AuthorsAPI>();
+if (!authors) throw new Error("Authors not found");
 </script>
 
 <template>

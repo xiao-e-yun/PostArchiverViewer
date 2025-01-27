@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-post-archiver = { version = "0.2.5", features = ["utils"] }
+post-archiver = { version = "0.2.5", features = ["utils","typescript"] }
 axum = "0.8.1"
 axum-reverse-proxy = "0.5.1"
 mime_guess = "2.0.5"
@@ -25,3 +25,4 @@ fast_image_resize = { version = "5.1.1", features = ["image", "rayon"] }
 tower-cache = "0.0.1"
 axum-response-cache = "0.2.0"
 path-clean = "1.0.1"
+ts-rs = { version = "10.1.0" }

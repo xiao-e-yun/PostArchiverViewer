@@ -11,10 +11,10 @@ import Search from './pages/Search.vue'
 
 const routes = [
   { path: '/', component: Home },
-  { path: '/author/:id', component: Author },
-  { path: '/post/:id', component: Post },
+  { path: '/author/:author', component: Author },
+  { path: '/post/:post', component: Post },
   { path: '/about', component: About },
-  { path: '/search', component: Search },
+  { path: '/search', component: Search,},
 ]
 
 const router = createRouter({

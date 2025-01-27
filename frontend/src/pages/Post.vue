@@ -3,33 +3,45 @@ import Image from '@/components/image/Image.vue';
 import { Badge } from '@/components/ui/badge';
 import Card from '@/components/ui/card/Card.vue';
 import { Separator } from '@/components/ui/separator';
-import type { AuthorsAPI, File, PostAPI, TagsAPI } from '@/types';
+import type { PostAPI } from '@/api';
+import { useFetch } from '@vueuse/core';
 import { ChevronLeft } from 'lucide-vue-next';
 import { marked } from 'marked';
-import { ofetch } from 'ofetch';
+import { computed } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
+import type { FileMetaJson } from '@api/FileMetaJson';
 
-const authors = await ofetch<AuthorsAPI>("/api/authors");
+let lastId = "0" as string;
+const route = useRoute();
+const id = computed(() => route.params.post as string | undefined);
+const url = computed(() => `/api/post?post=${parseInt(lastId = id.value ?? lastId)}`);
+const { data: post, isFetching  } = useFetch(url, { refetch: true }).json<PostAPI>();
 
-const pagePostId = parseInt(useRoute().params.id as string);
-const post = await ofetch<PostAPI>("/api/post", { query: { post: pagePostId } });
-const author = authors.find(author => author.id === post.author);
+const contents = computed(()=>{
+  const $post = post.value;
+  if (!$post) return [];
 
-let textList = [];
-let contents: (string | File)[] = [];
-for (const c of post.content) {
-  if (typeof c === "string") {
-    const markedContent = marked(c);
-    textList.push(markedContent);
-  } else {
-    if (textList.length) contents.push(textList.join(""));
-    contents.push(c);
-    textList = [];
+  let textList = [];
+  let contents: (string | FileMetaJson)[] = [];
+  for (const c of $post.content) {
+    if (typeof c === "string") {
+      const markedContent = marked(c);
+      textList.push(markedContent);
+    } else {
+      if (textList.length) contents.push(textList.join(""));
+      contents.push(c);
+      textList = [];
+    }
   }
-}
-if (textList.length) contents.push(textList.join(""));
+  if (textList.length) contents.push(textList.join(""));
+  return contents;
+})
 
-function getStyleByFileExtra(extra: File["extra"]) {
+const author = computed(() => post.value!.author);
+
+const tags = computed(() => post.value!.tags);
+
+function getStyleByFileExtra(extra: FileMetaJson["extra"]) {
   if (!hasExtra(extra)) return {};
   const width = parseInt(extra.width as string);
   const height = parseInt(extra.height as string);
@@ -37,22 +49,23 @@ function getStyleByFileExtra(extra: File["extra"]) {
     aspectRatio: width / height,
   };
 }
-function hasExtra(extra: File["extra"]) {
+function hasExtra(extra: FileMetaJson["extra"]) {
   return extra && (extra.width || extra.height);
 }
-
-const tags = await ofetch<TagsAPI>("/api/post/tags", { query: { post: pagePostId } });
 
 // TODO COMMENT
 </script>
 
 <template>
-  <template v-if="post">
-    <RouterLink v-if="author" :to="`/author/${author.id}`" class="flex p-2">
+  <template v-if="isFetching">
+    <h1 class="text-4xl font-bold my-4">Loading...</h1>
+  </template>
+  <template v-else-if="post">
+    <RouterLink :to="`/author/${author.id}`" class="flex p-2">
       <ChevronLeft /> <span class="font-bold">{{ author.name }}</span>
     </RouterLink>
-    <div>
-      <h1 class="md:text-4xl text-2xl mt-4 font-bold text-center capitalize">{{ post.title }}</h1>
+    <div class="capitalize">
+      <h1 class="md:text-4xl text-2xl mt-4 font-bold text-center">{{ post.title }}</h1>
 
       <div class="flex gap-2 my-4">
         <RouterLink v-if="author" :to="`/author/${author.id}`">
@@ -79,7 +92,7 @@ const tags = await ofetch<TagsAPI>("/api/post/tags", { query: { post: pagePostId
 
           <svg v-if="hasExtra(content.extra)" :width="content.extra.width" :height="content.extra.height" />
 
-          <Image v-if="content.mime.startsWith('image')" :src="content.url" :width="50"
+          <Image v-if="content.mime.startsWith('image')" :src="content.url" :width="100"
             :aspect="getStyleByFileExtra(content.extra).aspectRatio"
             class="object-cover max-h-[80vh] w-full absolute inset-0"></Image>
 
