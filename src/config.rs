@@ -5,7 +5,7 @@ use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize, Parser)]
 pub struct Config {
-    #[clap(env = "ARCHIVER_PATH")]
+    #[clap(env = "ARCHIVER_PATH", default_value = "archiver")]
     pub path: PathBuf,
     /// Example: https://static.example.com/archiver
     #[clap(long)]
