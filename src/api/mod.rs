@@ -1,6 +1,6 @@
 pub mod utils;
 
-use std::sync::{Arc, Mutex};
+use std::{num::NonZero, sync::{Arc, Mutex}};
 
 use axum::{
     extract::{Query, State},
@@ -9,6 +9,7 @@ use axum::{
     routing::get,
     Json, Router,
 };
+use lru::LruCache;
 use post_archiver::{Author, AuthorId, Post, PostId};
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
@@ -21,6 +22,7 @@ use crate::config::Config;
 #[derive(Clone)]
 pub struct AppState {
     conn: Arc<Mutex<Connection>>,
+    cache: Arc<Mutex<LruCache<(String, u32), u32>>>,
     config: Config,
 }
 
@@ -68,6 +70,7 @@ pub fn get_api_router(config: &Config) -> Router {
     let conn = Connection::open(path.join("post-archiver.db")).unwrap();
     let conn = Arc::new(Mutex::new(conn));
     let state = AppState {
+        cache: Arc::new(Mutex::new(LruCache::new(NonZero::new(10).unwrap()))),
         config: config.clone(),
         conn,
     };
@@ -75,6 +78,7 @@ pub fn get_api_router(config: &Config) -> Router {
     Router::new()
         .route("/authors", get(get_authors_api))
         .route("/author", get(get_author_api))
+        .route("/posts", get(get_posts_api))
         .route("/post", get(get_post_api))
         .route("/tags", get(get_tags_api))
         .route("/info", get(get_info_api))
@@ -111,23 +115,57 @@ async fn get_authors_api(
 }
 
 #[derive(Debug, Deserialize)]
-pub struct PostsQuery {
+pub struct AuthorQuery {
     author: u32,
 }
 
 async fn get_author_api(
-    Query(query): Query<PostsQuery>,
+    Query(query): Query<AuthorQuery>,
     State(state): State<AppState>,
-) -> Result<APIResponse<AuthorFullJson>, StatusCode> {
+) -> Result<APIResponse<AuthorJson>, StatusCode> {
     let mut conn = state.conn();
     let tx = conn
         .transaction()
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+    let data = AuthorJson::from_id(&state, &tx, AuthorId(query.author))
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(APIResponse { data })
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PostsQuery {
+    author: u32,
+    limit: Option<u32>,
+    page: Option<u32>,
+}
+
+async fn get_posts_api(
+    Query(query): Query<PostsQuery>,
+    State(state): State<AppState>,
+) -> Result<APIResponse<AuthorPostsJson>, StatusCode> {
+    let mut conn = state.conn();
+    let tx = conn
+        .transaction()
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let pagination_sql = match (query.limit, query.page) {
+        (Some(limit), Some(page)) => format!("LIMIT {} OFFSET {}", limit, page * limit),
+        _ => "".to_string(),
+    };
+
+    let sql = format!(
+        "SELECT * FROM posts WHERE author = ? ORDER BY updated DESC {}",
+        pagination_sql
+    );
     let mut stmt = tx
-        .prepare_cached("SELECT * FROM posts WHERE author = ? ORDER BY updated DESC")
-        .unwrap();
-    let mut rows = stmt.query([query.author]).unwrap();
+        .prepare_cached(&sql)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let mut rows = stmt
+        .query([query.author])
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let mut posts = Vec::new();
     while let Some(row) = rows.next().unwrap() {
@@ -137,20 +175,39 @@ async fn get_author_api(
         posts.push(post);
     }
 
-    let author = AuthorJson::from_id(&state, &tx, AuthorId(query.author))
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let total = match pagination_sql.as_str() {
+        "" => posts.len() as u32,
+        _ => {
+            let mut cache = state.cache.lock().unwrap();
+            let key = (sql, query.author);
+            match cache.get(&key) {
+                Some(total) => *total,
+                None => {
+                    let sql = format!("SELECT count() FROM posts WHERE author = ?");
+                    let total: u32 = tx
+                        .query_row(&sql, [query.author], |row| row.get(0))
+                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+                    cache.put(key, total);
+                    total
+                }
+                
+            }
+        }
+    };
 
-    Ok(APIResponse {
-        data: AuthorFullJson { author, posts },
-    })
+    let data = AuthorPostsJson {
+        posts,
+        total,
+    };
+
+    Ok(APIResponse { data })
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
-pub struct AuthorFullJson {
-    #[serde(flatten)]
-    author: AuthorJson,
+pub struct AuthorPostsJson {
     posts: Vec<PostMiniJson>,
+    total: u32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -190,13 +247,13 @@ async fn get_info_api(State(state): State<AppState>) -> Result<APIResponse<Value
 
     let count_authors: u32 = tx
         .query_row("SELECT COUNT() FROM authors", [], |row| row.get(0))
-        .unwrap();
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let count_posts: u32 = tx
         .query_row("SELECT COUNT() FROM posts", [], |row| row.get(0))
-        .unwrap();
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let count_files: u32 = tx
         .query_row("SELECT COUNT() FROM file_metas", [], |row| row.get(0))
-        .unwrap();
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(APIResponse {
         data: json!({
