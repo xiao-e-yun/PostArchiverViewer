@@ -1,23 +1,31 @@
 <script lang="ts" setup>
-import Image from '@/components/image/Image.vue';
-import { Badge } from '@/components/ui/badge';
-import Card from '@/components/ui/card/Card.vue';
-import { Separator } from '@/components/ui/separator';
-import type { PostAPI } from '@/api';
-import { useFetch } from '@vueuse/core';
-import { ChevronLeft } from 'lucide-vue-next';
-import { marked } from 'marked';
-import { computed } from 'vue';
-import { RouterLink, useRoute } from 'vue-router';
-import type { FileMetaJson } from '@api/FileMetaJson';
+import Image from "@/components/image/Image.vue";
+import { Badge } from "@/components/ui/badge";
+import Card from "@/components/ui/card/Card.vue";
+import { Separator } from "@/components/ui/separator";
+import type { PostAPI } from "@/api";
+import { useFetch } from "@vueuse/core";
+import { ChevronLeft } from "lucide-vue-next";
+import { marked } from "marked";
+import { computed } from "vue";
+import { RouterLink, useRoute } from "vue-router";
+import type { FileMetaJson } from "@api/FileMetaJson";
+import {
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import DialogImage from "@/components/DialogImage.vue";
 
 let lastId = "0" as string;
 const route = useRoute();
 const id = computed(() => route.params.post as string | undefined);
-const url = computed(() => `/api/post?post=${parseInt(lastId = id.value ?? lastId)}`);
-const { data: post, isFetching  } = useFetch(url, { refetch: true }).json<PostAPI>();
+const url = computed(
+  () => `/api/post?post=${parseInt((lastId = id.value ?? lastId))}`
+);
+const { data: post, isFetching } = useFetch(url, {
+  refetch: true,
+}).json<PostAPI>();
 
-const contents = computed(()=>{
+const contents = computed(() => {
   const $post = post.value;
   if (!$post) return [];
 
@@ -35,7 +43,7 @@ const contents = computed(()=>{
   }
   if (textList.length) contents.push(textList.join(""));
   return contents;
-})
+});
 
 const author = computed(() => post.value!.author);
 
@@ -65,7 +73,9 @@ function hasExtra(extra: FileMetaJson["extra"]) {
       <ChevronLeft /> <span class="font-bold">{{ author.name }}</span>
     </RouterLink>
     <div class="capitalize">
-      <h1 class="md:text-4xl text-2xl mt-4 font-bold text-center">{{ post.title }}</h1>
+      <h1 class="md:text-4xl text-2xl mt-4 font-bold text-center">
+        {{ post.title }}
+      </h1>
 
       <div class="flex gap-2 my-4">
         <RouterLink v-if="author" :to="`/author/${author.id}`">
@@ -76,34 +86,74 @@ function hasExtra(extra: FileMetaJson["extra"]) {
         </a>
       </div>
       <div class="flex gap-2 my-4">
-        <Badge class="bg-blue-300 dark:bg-blue-600" variant="secondary" title="Updated">{{ new
-          Date(post.updated).toLocaleString() }}</Badge>
-        <Badge class="bg-rose-300 dark:bg-rose-500" variant="secondary" title="Published">{{ new
-          Date(post.published).toLocaleString() }}</Badge>
+        <Badge
+          class="bg-blue-300 dark:bg-blue-600"
+          variant="secondary"
+          title="Updated"
+          >{{ new Date(post.updated).toLocaleString() }}</Badge
+        >
+        <Badge
+          class="bg-rose-300 dark:bg-rose-500"
+          variant="secondary"
+          title="Published"
+          >{{ new Date(post.published).toLocaleString() }}</Badge
+        >
         <Badge v-for="tag in tags" variant="secondary">{{ tag.name }}</Badge>
       </div>
     </div>
     <Separator class="my-4" />
-    <div class="flex flex-col gap-4 pt-4 lg:w-[1024px] mx-auto" :class="$style.content">
+    <div
+      class="flex flex-col gap-4 pt-4 lg:w-[1024px] mx-auto"
+      :class="$style.content"
+    >
       <template v-for="content in contents">
         <div v-if="typeof content === 'string'" v-html="content" />
-        <Card v-else class="m-auto overflow-hidden max-h-[80vh] max-w-full relative"
-          :style="getStyleByFileExtra(content.extra)">
+        <Card
+          v-else
+          class="m-auto overflow-hidden max-h-[80vh] max-w-full relative"
+          :style="getStyleByFileExtra(content.extra)"
+        >
+          <svg
+            v-if="hasExtra(content.extra)"
+            :width="content.extra.width"
+            :height="content.extra.height"
+          />
 
-          <svg v-if="hasExtra(content.extra)" :width="content.extra.width" :height="content.extra.height" />
-
-          <Image v-if="content.mime.startsWith('image')" :src="content.url" :width="100"
+          <DialogImage
+            v-if="content.mime.startsWith('image')"
             :aspect="getStyleByFileExtra(content.extra).aspectRatio"
-            class="object-cover max-h-[80vh] w-full absolute inset-0"></Image>
+            :src="content.url"
+            class="p-0"
+          >
+            <DialogTrigger as="div">
+              <Image
+                :width="100"
+                :src="content.url"
+                :aspect="getStyleByFileExtra(content.extra).aspectRatio"
+                class="object-cover max-h-[80vh] w-full absolute inset-0"
+              />
+            </DialogTrigger>
+          </DialogImage>
 
-          <video v-else-if="content.mime.startsWith('video')" :src="content.url" controls />
+          <video
+            v-else-if="content.mime.startsWith('video')"
+            :src="content.url"
+            controls
+          />
 
-          <audio v-else-if="content.mime.startsWith('audio')" :src="content.url" />
+          <audio
+            v-else-if="content.mime.startsWith('audio')"
+            :src="content.url"
+          />
 
-          <a v-else :href="content.url" target="_blank" rel="noopener noreferrer">
+          <a
+            v-else
+            :href="content.url"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             <Badge>{{ content.mime }}</Badge>
           </a>
-
         </Card>
       </template>
     </div>
@@ -141,7 +191,7 @@ function hasExtra(extra: FileMetaJson["extra"]) {
 }
 
 .content a {
-  color: rgb(147 197 253 / var(--tw-text-opacity, 1))
+  color: rgb(147 197 253 / var(--tw-text-opacity, 1));
 }
 
 .content a:hover {

@@ -35,7 +35,9 @@ const links = [
       <RouterView v-slot="{ Component }">
         <KeepAlive>
           <Suspense>
-            <component :is="Component" />
+            <div>
+              <component :is="Component" />
+            </div>
           </Suspense>
         </KeepAlive>
       </RouterView>
