@@ -1,6 +1,9 @@
 pub mod utils;
 
-use std::{num::NonZero, sync::{Arc, Mutex}};
+use std::{
+    num::NonZero,
+    sync::{Arc, Mutex},
+};
 
 use axum::{
     extract::{Query, State},
@@ -22,7 +25,7 @@ use crate::config::Config;
 #[derive(Clone)]
 pub struct AppState {
     conn: Arc<Mutex<Connection>>,
-    cache: Arc<Mutex<LruCache<(String, u32), u32>>>,
+    cache: Arc<Mutex<LruCache<u32, u32>>>,
     config: Config,
 }
 
@@ -131,7 +134,10 @@ async fn get_author_api(
     let data = AuthorJson::from_id(&state, &tx, AuthorId(query.author))
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Ok(APIResponse { data })
+    match data {
+        Some(data) => Ok(APIResponse { data }),
+        None => return Err(StatusCode::NOT_FOUND),
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -172,14 +178,17 @@ async fn get_posts_api(
         let post = Post::from_row(&state, row).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         let post = PostMiniJson::resolve(&state, &tx, post)
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        posts.push(post);
+        match post {
+            Some(post) => posts.push(post),
+            None => continue,
+        }
     }
 
     let total = match pagination_sql.as_str() {
         "" => posts.len() as u32,
         _ => {
             let mut cache = state.cache.lock().unwrap();
-            let key = (sql, query.author);
+            let key = query.author;
             match cache.get(&key) {
                 Some(total) => *total,
                 None => {
@@ -190,15 +199,11 @@ async fn get_posts_api(
                     cache.put(key, total);
                     total
                 }
-                
             }
         }
     };
 
-    let data = AuthorPostsJson {
-        posts,
-        total,
-    };
+    let data = AuthorPostsJson { posts, total };
 
     Ok(APIResponse { data })
 }
@@ -225,7 +230,11 @@ async fn get_post_api(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let id = PostId(query.post);
     let data = PostJson::from_id(&state, &tx, id).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    Ok(APIResponse { data })
+
+    match data {
+        Some(data) => Ok(APIResponse { data }),
+        None => return Err(StatusCode::NOT_FOUND),
+    }
 }
 
 async fn get_tags_api(

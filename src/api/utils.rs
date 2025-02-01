@@ -1,7 +1,9 @@
 use std::ops::Deref;
 
 use chrono::{DateTime, Utc};
-use post_archiver::{Author, AuthorId, Comment, Content, FileMetaId, Link, Post, PostId, PostTagId, Tag};
+use post_archiver::{
+    Author, AuthorId, Comment, Content, FileMetaId, Link, Post, PostId, PostTagId, Tag,
+};
 use rusqlite::{OptionalExtension, Row, Transaction};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -31,19 +33,13 @@ impl AuthorJson {
         state: &AppState,
         tx: &Transaction,
         id: AuthorId,
-    ) -> Result<Self, rusqlite::Error> {
+    ) -> Result<Option<Self>, rusqlite::Error> {
         let mut stmt = tx.prepare_cached("SELECT * FROM authors WHERE id = ?")?;
 
-        match stmt
-            .query_row([id], |row| Author::from_row(state, row))
+        stmt.query_row([id], |row| Author::from_row(state, row))
             .optional()?
-        {
-            Some(author) => Self::resolve(state, tx, author),
-            None => {
-                error!("Author {} not found", id);
-                Err(rusqlite::Error::UnwindingPanic)
-            }
-        }
+            .and_then(|post| Some(Self::resolve(state, tx, post)))
+            .transpose()
     }
 
     pub fn resolve(
@@ -89,7 +85,7 @@ impl FromRow for Author {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize,TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct PostJson {
     pub id: PostId,
@@ -104,7 +100,7 @@ pub struct PostJson {
     pub tags: Vec<TagJson>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize,TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(untagged)]
 #[ts(export)]
 pub enum ContentJson {
@@ -117,35 +113,35 @@ impl PostJson {
         state: &AppState,
         tx: &Transaction,
         id: PostId,
-    ) -> Result<Self, rusqlite::Error> {
+    ) -> Result<Option<Self>, rusqlite::Error> {
         let mut stmt = tx.prepare_cached("SELECT * FROM posts WHERE id = ?")?;
 
-        match stmt
-            .query_row([id], |row| Post::from_row(state, row))
+        stmt.query_row([id], |row| Post::from_row(state, row))
             .optional()?
-        {
-            Some(post) => Self::resolve(state, tx, post),
-            None => {
-                error!("Author {} not found", id);
-                Err(rusqlite::Error::UnwindingPanic)
-            }
-        }
+            .and_then(|post| Self::resolve(state, tx, post).transpose())
+            .transpose()
     }
 
     pub fn resolve(
         state: &AppState,
         tx: &Transaction,
         post: Post,
-    ) -> Result<Self, rusqlite::Error> {
+    ) -> Result<Option<Self>, rusqlite::Error> {
+        let author = match AuthorJson::from_id(state, tx, post.author)? {
+            Some(author) => author,
+            None => return Ok(None),
+        };
 
-        let author = AuthorJson::from_id(state, tx, post.author)?;
-        
-        let content = post.content.into_iter().map(|content|{
-            Ok(match content {
-                Content::Text(text) => ContentJson::Text(text),
-                Content::File(id) => ContentJson::File(FileMetaJson::resolve(state, tx, id)?),
+        let content = post
+            .content
+            .into_iter()
+            .map(|content| {
+                Ok(match content {
+                    Content::Text(text) => ContentJson::Text(text),
+                    Content::File(id) => ContentJson::File(FileMetaJson::resolve(state, tx, id)?),
+                })
             })
-        }).collect::<Result<Vec<ContentJson>,rusqlite::Error>>()?;
+            .collect::<Result<Vec<ContentJson>, rusqlite::Error>>()?;
 
         let thumb = post
             .thumb
@@ -154,7 +150,7 @@ impl PostJson {
 
         let tags = TagJson::from_post(state, tx, post.id)?;
 
-        Ok(PostJson {
+        Ok(Some(PostJson {
             id: post.id,
             author,
             source: post.source,
@@ -165,11 +161,11 @@ impl PostJson {
             updated: post.updated,
             published: post.published,
             tags,
-        })
+        }))
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize,TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct PostMiniJson {
     pub id: PostId,
@@ -184,21 +180,24 @@ impl PostMiniJson {
         state: &AppState,
         tx: &Transaction,
         post: Post,
-    ) -> Result<Self, rusqlite::Error> {
-        let author = AuthorJson::from_id(state, tx, post.author)?;
+    ) -> Result<Option<Self>, rusqlite::Error> {
+        let author = match AuthorJson::from_id(state, tx, post.author)? {
+            Some(author) => author,
+            None => return Ok(None),
+        };
 
         let thumb = post
             .thumb
             .map(|thumb| FileMetaJson::resolve(state, tx, thumb))
             .transpose()?;
 
-        Ok(PostMiniJson {
+        Ok(Some(PostMiniJson {
             id: post.id,
             author,
             title: post.title,
             thumb,
             updated: post.updated,
-        })
+        }))
     }
 }
 
@@ -243,7 +242,7 @@ impl FromRow for Post {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize,TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct FileMetaJson {
     pub id: FileMetaId,
@@ -320,7 +319,7 @@ fn parse_json(json: String) -> Result<Value, rusqlite::Error> {
     Ok(json)
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize,TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
 pub struct TagJson(Tag);
 
@@ -347,10 +346,7 @@ impl TagJson {
         Ok(data)
     }
 
-    pub fn all(
-        state: &AppState,
-        tx: &Transaction,
-    ) -> Result<Vec<Self>, rusqlite::Error> {
+    pub fn all(state: &AppState, tx: &Transaction) -> Result<Vec<Self>, rusqlite::Error> {
         let mut stmt = tx.prepare_cached("SELECT * FROM tags")?;
         let mut rows = stmt.query([])?;
 
@@ -367,7 +363,8 @@ impl TagJson {
 impl FromRow for Tag {
     fn from_row(_state: &AppState, row: &Row) -> Result<Self, rusqlite::Error>
     where
-        Self: Sized {
+        Self: Sized,
+    {
         let id: PostTagId = row.get(0)?;
         let name: String = row.get(1)?;
 
