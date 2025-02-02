@@ -110,7 +110,26 @@ async fn provide_images(
     let algorithm = if cfg!(debug_assertions) {
         ResizeAlg::Nearest
     } else {
-        ResizeAlg::Convolution(FilterType::Lanczos3)
+        let filter_type = match config.resize.filter_type.as_str() {
+            "lanczos3" => FilterType::Lanczos3,
+            "gaussian" => FilterType::Gaussian,
+            "catmull-rom" => FilterType::CatmullRom,
+            "hamming" => FilterType::Hamming,
+            "mitchell" => FilterType::Mitchell,
+            "bilinear" => FilterType::Bilinear,
+            "box" => FilterType::Box,
+            _ => FilterType::Lanczos3,
+        };
+
+        match config.resize.algorithm.as_str() {
+            "super-sampling8x" => ResizeAlg::SuperSampling(filter_type, 8),
+            "super-sampling4x" => ResizeAlg::SuperSampling(filter_type, 4),
+            "super-sampling2x" => ResizeAlg::SuperSampling(filter_type, 2),
+            "interpolation" => ResizeAlg::Interpolation(filter_type),
+            "convolution" => ResizeAlg::Convolution(filter_type),
+            "nearest" => ResizeAlg::Nearest,
+            _ => ResizeAlg::Interpolation(filter_type),
+        }
     };
     let options = ResizeOptions::new()
         .resize_alg(algorithm)

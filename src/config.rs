@@ -15,4 +15,32 @@ pub struct Config {
     pub images_url: Option<String>,
     #[clap(long, default_value = "3000")]
     pub port: u16,
+
+    #[clap(flatten)]
+    pub resize: ResizeConfig,
+}
+
+#[derive(Debug, Clone, Deserialize, Parser)]
+pub struct ResizeConfig {
+    /// `lanczos3`  
+    /// `gaussian`  
+    /// `catmull-rom`  
+    /// `hamming`  
+    /// `mitchell`  
+    /// `bilinear`  
+    /// `box`  
+    #[clap(long="resize-filter-type", default_value = "lanczos3")]
+    pub filter_type: String,
+
+    /// Slow <-
+    /// `super-sampling8x`  
+    /// `super-sampling4x`  
+    /// `super-sampling2x`  
+    /// `convolution`  
+    /// `interpolation`  
+    /// `nearest`  
+    /// -> Fast
+    /// (nearest will ignore filter_type)
+    #[clap(long="resize-algorithm", default_value = "interpolation" )]
+    pub algorithm: String,
 }
