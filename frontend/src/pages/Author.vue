@@ -9,7 +9,13 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import type { AuthorAPI } from "@/api";
-import { useFetch, useLocalStorage, useUrlSearchParams } from "@vueuse/core";
+import {
+  breakpointsTailwind,
+  useBreakpoints,
+  useFetch,
+  useLocalStorage,
+  useUrlSearchParams,
+} from "@vueuse/core";
 import { ChevronLeft, ImageOff, LayoutList } from "lucide-vue-next";
 import { useRoute } from "vue-router";
 import { computed, useTemplateRef, watch } from "vue";
@@ -73,7 +79,21 @@ const { data: postsData, isFetching: isPostsFetching } = useFetch(postsUrl, {
 }).json<AuthorPostsJson>();
 
 const postsEl = useTemplateRef<HTMLDivElement>("postsList");
-watch(postsEl, el=>el&&useLazyLoad().update())
+watch(postsEl, (el) => el && useLazyLoad().update());
+
+const breakpoints = useBreakpoints(breakpointsTailwind);
+const isSmall = breakpoints.smallerOrEqual("sm");
+const siblingCount = computed(
+  () =>
+    ({
+      sm: 1,
+      md: 2,
+      lg: 2,
+      xl: 3,
+      "2xl": 3,
+      "": 0,
+    }[breakpoints.active().value])
+);
 </script>
 
 <template>
@@ -98,7 +118,7 @@ watch(postsEl, el=>el&&useLazyLoad().update())
       </RouterLink>
     </template>
   </div>
-  <div class="flex justify-end gap-2">
+  <div class="flex justify-end gap-2 flex-wrap">
     <Select v-model="postsPrePage">
       <SelectTrigger class="w-32">
         <LayoutList />
@@ -114,8 +134,8 @@ watch(postsEl, el=>el&&useLazyLoad().update())
     <Pagination
       v-slot="{ page }"
       :total="postsData?.total ?? 0"
-      :sibling-count="1"
-      show-edges
+      :sibling-count="siblingCount"
+      :show-edges="!isSmall"
       :items-per-page="parseInt(postsPrePage)"
       v-model:page="page"
     >
@@ -156,7 +176,8 @@ watch(postsEl, el=>el&&useLazyLoad().update())
     />
   </div>
   <div
-    v-else-if="postsData" ref="postsList"
+    v-else-if="postsData"
+    ref="postsList"
     class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"
   >
     <RouterLink v-for="post in postsData.posts" :to="`/post/${post.id}`">
@@ -173,10 +194,10 @@ watch(postsEl, el=>el&&useLazyLoad().update())
         <div v-else class="aspect-square">
           <ImageOff class="w-full h-full p-4" :stroke-width="0.5" />
         </div>
-        <CardHeader>
-          <CardTitle>{{ post.title }}</CardTitle>
-          <CardDescription>{{
-            new Date(post.updated).toLocaleString()
+        <CardHeader class="md:p-6">
+          <CardTitle class="text-base md:text-lg">{{ post.title }}</CardTitle>
+          <CardDescription class="">{{
+            new Date(post.updated).toLocaleString("zh-CN")
           }}</CardDescription>
         </CardHeader>
       </Card>
@@ -189,7 +210,7 @@ watch(postsEl, el=>el&&useLazyLoad().update())
     </RouterLink>
   </template>
   <Separator class="my-4" />
-  <div class="flex justify-end gap-2">
+  <div class="flex justify-end gap-2 flex-wrap">
     <Select v-model="postsPrePage">
       <SelectTrigger class="w-32">
         <LayoutList />
@@ -205,8 +226,8 @@ watch(postsEl, el=>el&&useLazyLoad().update())
     <Pagination
       v-slot="{ page }"
       :total="postsData?.total ?? 0"
-      :sibling-count="1"
-      show-edges
+      :sibling-count="siblingCount"
+      :show-edges="!isSmall"
       :items-per-page="parseInt(postsPrePage)"
       v-model:page="page"
     >

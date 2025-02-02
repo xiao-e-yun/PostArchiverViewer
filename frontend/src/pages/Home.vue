@@ -38,7 +38,7 @@ watch(authorsEl, (el) => el && useLazyLoad().update());
           <CardHeader>
             <CardTitle>{{ author.name }}</CardTitle>
             <CardDescription>{{
-              new Date(author.updated).toLocaleString()
+              new Date(author.updated).toLocaleString("zh-CN")
             }}</CardDescription>
           </CardHeader>
           <CardFooter class="flex gap-2 capitalize">

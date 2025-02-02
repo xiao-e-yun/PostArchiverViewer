@@ -127,7 +127,7 @@ function hasExtra(extra: FileMetaJson["extra"]) {
     </div>
     <Separator class="my-4" />
     <div
-      class="flex flex-col gap-4 pt-4 lg:w-[1024px] mx-auto"
+      class="flex flex-col gap-4 pt-4  px-4 lg:w-[1024px] mx-auto md:border-x md:px-6"
       :class="$style.content"
     >
       <template v-if="isFetching">
