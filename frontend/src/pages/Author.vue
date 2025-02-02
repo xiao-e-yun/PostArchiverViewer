@@ -194,7 +194,7 @@ const siblingCount = computed(
         <div v-else class="aspect-square">
           <ImageOff class="w-full h-full p-4" :stroke-width="0.5" />
         </div>
-        <CardHeader class="md:p-6">
+        <CardHeader class="p-3 sm:p-4 md:p-6">
           <CardTitle class="text-base md:text-lg">{{ post.title }}</CardTitle>
           <CardDescription class="">{{
             new Date(post.updated).toLocaleString("zh-CN")
