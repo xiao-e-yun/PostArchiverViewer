@@ -12,7 +12,7 @@ import type { AuthorAPI } from "@/api";
 import { useFetch, useLocalStorage, useUrlSearchParams } from "@vueuse/core";
 import { ChevronLeft, ImageOff, LayoutList } from "lucide-vue-next";
 import { useRoute, useRouter } from "vue-router";
-import { computed, watch } from "vue";
+import { computed, useTemplateRef, watch } from "vue";
 import type { AuthorPostsJson } from "@api/AuthorPostsJson";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getUrlWithParams } from "@/utils";
@@ -34,6 +34,7 @@ import {
   PaginationPrev,
 } from "@/components/ui/pagination";
 import { Button } from "@/components/ui/button";
+import { useLazyLoad } from "@/lazyload";
 
 let lastId = "0" as string;
 const router = useRouter();
@@ -67,9 +68,12 @@ const postsUrl = computed(
     }).href
 );
 
-const { data: posts, isFetching: isPostsFetching } = useFetch(postsUrl, {
+const { data: postsData, isFetching: isPostsFetching } = useFetch(postsUrl, {
   refetch: true,
 }).json<AuthorPostsJson>();
+
+const postsEl = useTemplateRef<HTMLDivElement>("postsList");
+watch(postsEl, el=>el&&useLazyLoad().update())
 </script>
 
 <template>
@@ -109,7 +113,7 @@ const { data: posts, isFetching: isPostsFetching } = useFetch(postsUrl, {
 
     <Pagination
       v-slot="{ page }"
-      :total="posts?.total ?? 0"
+      :total="postsData?.total ?? 0"
       :sibling-count="1"
       show-edges
       :items-per-page="parseInt(postsPrePage)"
@@ -142,17 +146,20 @@ const { data: posts, isFetching: isPostsFetching } = useFetch(postsUrl, {
     </Pagination>
   </div>
   <Separator class="my-4" />
-  <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+  <div
+    v-if="isPostsFetching"
+    class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"
+  >
     <Skeleton
-      v-if="isPostsFetching"
       v-for="_ in parseInt(postsPrePage)"
       class="pt-[100%] h-[122px] box-content"
     />
-    <RouterLink
-      v-else-if="posts"
-      v-for="post in posts.posts"
-      :to="`/post/${post.id}`"
-    >
+  </div>
+  <div
+    v-else-if="postsData" ref="postsList"
+    class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"
+  >
+    <RouterLink v-for="post in postsData.posts" :to="`/post/${post.id}`">
       <Card
         class="transition-transform hover:scale-105 hover:z-10 relative w-full h-full overflow-hidden"
       >
@@ -174,13 +181,13 @@ const { data: posts, isFetching: isPostsFetching } = useFetch(postsUrl, {
         </CardHeader>
       </Card>
     </RouterLink>
-    <template v-else>
-      <h1 class="text-4xl font-bold my-4">Posts not found</h1>
-      <RouterLink to="/">
-        <Badge>Home</Badge>
-      </RouterLink>
-    </template>
   </div>
+  <template v-else>
+    <h1 class="text-4xl font-bold my-4">Posts not found</h1>
+    <RouterLink to="/">
+      <Badge>Home</Badge>
+    </RouterLink>
+  </template>
   <Separator class="my-4" />
   <div class="flex justify-end gap-2">
     <Select v-model="postsPrePage">
@@ -197,7 +204,7 @@ const { data: posts, isFetching: isPostsFetching } = useFetch(postsUrl, {
 
     <Pagination
       v-slot="{ page }"
-      :total="posts?.total ?? 0"
+      :total="postsData?.total ?? 0"
       :sibling-count="1"
       show-edges
       :items-per-page="parseInt(postsPrePage)"

@@ -51,4 +51,9 @@ const links = [
 body {
   font-family: 'Comfortaa', sans-serif;
 }
+
+/* for lazy loading images */
+img:not([src]):not([srcset]) {
+  visibility: hidden;
+}
 </style>

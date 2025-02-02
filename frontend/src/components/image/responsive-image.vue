@@ -1,15 +1,48 @@
 <template>
-  <picture>
+  <picture v-if="lazyLoading">
+    <source
+      v-if="hasSmartphoneSrcset && !showError"
+      :data-srcset="smartphoneSrcset"
+      :data-sizes="smartphoneSizes"
+      media="(max-width: 767px)"
+    />
+    <source
+      v-if="hasTabletSrcset && !showError"
+      :data-srcset="tabletSrcset"
+      :data-sizes="tabletSizes"
+      media="(min-width: 768px) and (max-width: 1023px)"
+    />
+    <img
+      v-if="!showError"
+      :data-src="defaultImage"
+      :alt="alt"
+      :class="[defaultClass, imageClass, 'lazy']"
+      :data-srcset="srcset"
+      :data-sizes="sizes"
+      @error="onError"
+      v-bind="$attrs"
+    />
+    <img
+      v-else
+      :data-src="errorImage"
+      :alt="alt"
+      :class="[defaultClass, imageClass, errorClass, 'lazy']"
+      v-bind="$attrs"
+    />
+  </picture>
+  <picture v-else>
     <source
       v-if="hasSmartphoneSrcset && !showError"
       :srcset="smartphoneSrcset"
       :sizes="smartphoneSizes"
-      media="(max-width: 767px)">
+      media="(max-width: 767px)"
+    />
     <source
       v-if="hasTabletSrcset && !showError"
       :srcset="tabletSrcset"
       :sizes="tabletSizes"
-      media="(min-width: 768px) and (max-width: 1023px)">
+      media="(min-width: 768px) and (max-width: 1023px)"
+    />
     <img
       v-if="!showError"
       :src="defaultImage"
@@ -17,19 +50,16 @@
       :class="[defaultClass, imageClass]"
       :srcset="srcset"
       :sizes="sizes"
-      :loading="loadingMode"
-      decoding="async"
       @error="onError"
-      v-bind="$attrs">
+      v-bind="$attrs"
+    />
     <img
       v-else
       :src="errorImage"
       :alt="alt"
       :class="[defaultClass, imageClass, errorClass]"
-      :loading="loadingMode"
-      decoding="async"
       v-bind="$attrs"
-      >
+    />
   </picture>
 </template>
 
@@ -101,7 +131,7 @@ export default {
     // whether to trigger lazy loading or not
     lazyLoading: {
       type: Boolean,
-      default: false
+      default: true
     }
   },
   data: () => {
@@ -141,9 +171,6 @@ export default {
     }
   },
   computed: {
-    loadingMode () {
-      return this.lazyLoading ? 'lazy' : null
-    },
     showError () {
       return this.hasError && this.showErrorImage
     },

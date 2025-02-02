@@ -7,21 +7,27 @@ import type { PostAPI } from "@/api";
 import { useFetch } from "@vueuse/core";
 import { ChevronLeft } from "lucide-vue-next";
 import { marked } from "marked";
-import { computed } from "vue";
+import { computed, nextTick } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import type { FileMetaJson } from "@api/FileMetaJson";
-import {
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { DialogTrigger } from "@/components/ui/dialog";
 import DialogImage from "@/components/DialogImage.vue";
+import Skeleton from "@/components/ui/skeleton/Skeleton.vue";
+import { getUrlWithParams } from "@/utils";
+import { useLazyLoad } from "@/lazyload";
 
 let lastId = "0" as string;
 const route = useRoute();
 const id = computed(() => route.params.post as string | undefined);
 const url = computed(
-  () => `/api/post?post=${parseInt((lastId = id.value ?? lastId))}`
+  () =>
+    getUrlWithParams("/api/post", { post: (lastId = id.value ?? lastId) }).href
 );
-const { data: post, isFetching } = useFetch(url, {
+const {
+  data: post,
+  statusCode,
+  isFetching,
+} = useFetch(url, {
   refetch: true,
 }).json<PostAPI>();
 
@@ -42,12 +48,14 @@ const contents = computed(() => {
     }
   }
   if (textList.length) contents.push(textList.join(""));
+  
+  nextTick(()=>useLazyLoad().update())
   return contents;
 });
 
-const author = computed(() => post.value!.author);
+const author = computed(() => post.value?.author);
 
-const tags = computed(() => post.value!.tags);
+const tags = computed(() => post.value?.tags);
 
 function getStyleByFileExtra(extra: FileMetaJson["extra"]) {
   if (!hasExtra(extra)) return {};
@@ -65,40 +73,56 @@ function hasExtra(extra: FileMetaJson["extra"]) {
 </script>
 
 <template>
-  <template v-if="isFetching">
-    <h1 class="text-4xl font-bold my-4">Loading...</h1>
+  <template v-if="statusCode === 404">
+    <h1>Post not found</h1>
+    <RouterLink to="/">Home</RouterLink>
   </template>
-  <template v-else-if="post">
-    <RouterLink :to="`/author/${author.id}`" class="flex p-2">
-      <ChevronLeft /> <span class="font-bold">{{ author.name }}</span>
+  <template v-else>
+    <RouterLink :to="author ? `/author/${author.id}` : `/`" class="flex p-2">
+      <ChevronLeft />
+      <Skeleton v-if="!author" class="w-20" />
+      <span class="font-bold" v-else>{{ author.name }}</span>
     </RouterLink>
     <div class="capitalize">
       <h1 class="md:text-4xl text-2xl mt-4 font-bold text-center">
-        {{ post.title }}
+        <Skeleton v-if="!post" class="w-[12em] h-[1.1em] mx-auto" />
+        <template v-else>{{ post.title }}</template>
       </h1>
 
       <div class="flex gap-2 my-4">
         <RouterLink v-if="author" :to="`/author/${author.id}`">
           <Badge title="Author">{{ author.name }}</Badge>
         </RouterLink>
-        <a v-if="post.source" :href="post.source">
+        <Skeleton v-else class="rounded-full w-24 my-px" />
+        <a v-if="post?.source" :href="post.source">
           <Badge variant="secondary">source</Badge>
         </a>
       </div>
       <div class="flex gap-2 my-4">
-        <Badge
-          class="bg-blue-300 dark:bg-blue-600"
-          variant="secondary"
-          title="Updated"
-          >{{ new Date(post.updated).toLocaleString() }}</Badge
-        >
-        <Badge
-          class="bg-rose-300 dark:bg-rose-500"
-          variant="secondary"
-          title="Published"
-          >{{ new Date(post.published).toLocaleString() }}</Badge
-        >
-        <Badge v-for="tag in tags" variant="secondary">{{ tag.name }}</Badge>
+        <Skeleton v-if="!post" v-for="_ in 2" class="rounded-full w-[120px]" />
+        <template v-else>
+          <Badge
+            class="bg-blue-300 dark:bg-blue-600"
+            variant="secondary"
+            title="Updated"
+            >{{ new Date(post.updated).toLocaleString("zh-CN") }}</Badge
+          >
+          <Badge
+            class="bg-rose-300 dark:bg-rose-500"
+            variant="secondary"
+            title="Published"
+            >{{ new Date(post.published).toLocaleString("zh-CN") }}</Badge
+          >
+        </template>
+        <Skeleton
+          v-if="tags === undefined"
+          v-for="width in ['20', '16', '10']"
+          class="rounded-full"
+          :class="'w-' + width"
+        />
+        <Badge v-else v-for="tag in tags" variant="secondary">{{
+          tag.name
+        }}</Badge>
       </div>
     </div>
     <Separator class="my-4" />
@@ -106,7 +130,14 @@ function hasExtra(extra: FileMetaJson["extra"]) {
       class="flex flex-col gap-4 pt-4 lg:w-[1024px] mx-auto"
       :class="$style.content"
     >
-      <template v-for="content in contents">
+      <template v-if="isFetching">
+        <Skeleton style="width: 89%; height: 1em" />
+        <Skeleton style="width: 26%; height: 1em" />
+        <Skeleton style="width: 61%; height: 1em" />
+        <Skeleton style="width: 21%; height: 1em" />
+        <Skeleton style="aspect-ratio: 0.8; height: 80vh; margin: auto" />
+      </template>
+      <template v-else v-for="content in contents">
         <div v-if="typeof content === 'string'" v-html="content" />
         <Card
           v-else
@@ -138,6 +169,7 @@ function hasExtra(extra: FileMetaJson["extra"]) {
           <video
             v-else-if="content.mime.startsWith('video')"
             :src="content.url"
+            class="lazy"
             controls
           />
 
@@ -157,10 +189,6 @@ function hasExtra(extra: FileMetaJson["extra"]) {
         </Card>
       </template>
     </div>
-  </template>
-  <template v-else>
-    <h1>Post not found</h1>
-    <RouterLink to="/">Home</RouterLink>
   </template>
 </template>
 
