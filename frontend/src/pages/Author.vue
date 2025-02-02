@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import type { AuthorAPI } from "@/api";
 import { useFetch, useLocalStorage, useUrlSearchParams } from "@vueuse/core";
 import { ChevronLeft, ImageOff, LayoutList } from "lucide-vue-next";
-import { useRoute, useRouter } from "vue-router";
+import { useRoute } from "vue-router";
 import { computed, useTemplateRef, watch } from "vue";
 import type { AuthorPostsJson } from "@api/AuthorPostsJson";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -37,7 +37,6 @@ import { Button } from "@/components/ui/button";
 import { useLazyLoad } from "@/lazyload";
 
 let lastId = "0" as string;
-const router = useRouter();
 
 const route = useRoute();
 const id = computed(() => route.params.author as string | undefined);
@@ -54,9 +53,10 @@ const postsPrePage = useLocalStorage(
 );
 watch(postsPrePage, () => (page.value = 1));
 
+const searchParams = useUrlSearchParams();
 const page = computed({
-  get: () => parseInt((useUrlSearchParams().page as string | undefined) ?? "1"),
-  set: (value: number | string) => router.push({ query: { page: value } }),
+  get: () => parseInt((searchParams.page as string | undefined) ?? "1"),
+  set: (value: number | string) => (searchParams.page = value.toString()),
 });
 
 const postsUrl = computed(
