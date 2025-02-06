@@ -116,7 +116,7 @@ const [tooltipScale, toggleTooltipScale] = useToggle(true)
           :style="style"
           :class="
             cn(
-              'relative z-50 grid w-auto max-w-none my-8 gap-4 border border-border bg-background p-6 shadow-lg sm:rounded-lg',
+              'relative z-50 grid w-auto max-w-none my-8 gap-4 border border-border bg-background p-6 shadow-lg rounded-none',
               props.class
             )
           "
