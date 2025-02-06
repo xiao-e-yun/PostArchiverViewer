@@ -5,9 +5,9 @@ import Card from "@/components/ui/card/Card.vue";
 import { Separator } from "@/components/ui/separator";
 import type { PostAPI } from "@/api";
 import { useFetch } from "@vueuse/core";
-import { ChevronLeft } from "lucide-vue-next";
+import { ArrowDown, ChevronLeft, File } from "lucide-vue-next";
 import { marked } from "marked";
-import { computed, nextTick, ref } from "vue";
+import { computed, nextTick } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import type { FileMetaJson } from "@api/FileMetaJson";
 import { DialogTrigger } from "@/components/ui/dialog";
@@ -49,8 +49,8 @@ const contents = computed(() => {
     }
   }
   if (textList.length) contents.push(textList.join(""));
-  
-  nextTick(()=>useLazyLoad().update())
+
+  nextTick(() => useLazyLoad().update());
   return contents;
 });
 
@@ -100,7 +100,11 @@ function hasExtra(extra: FileMetaJson["extra"]) {
         </a>
       </div>
       <div class="flex gap-2 my-4">
-        <Skeleton v-if="!post" v-for="_ in 2" class="rounded-full w-[120px] h-[22px]" />
+        <Skeleton
+          v-if="!post"
+          v-for="_ in 2"
+          class="rounded-full w-[120px] h-[22px]"
+        />
         <template v-else>
           <Badge
             class="bg-blue-300 dark:bg-blue-600"
@@ -127,7 +131,7 @@ function hasExtra(extra: FileMetaJson["extra"]) {
     </div>
     <Separator class="my-4" />
     <div
-      class="flex flex-col gap-4 pt-4 px-4 lg:w-[1024px] mx-auto md:border-x md:px-6"
+      class="flex flex-col gap-4 p-4 lg:w-[1024px] mx-auto md:border-x md:px-6"
       :class="$style.content"
     >
       <template v-if="isFetching">
@@ -161,7 +165,7 @@ function hasExtra(extra: FileMetaJson["extra"]) {
                 :width="100"
                 :src="content.url"
                 :aspect="getStyleByFileExtra(content.extra).aspectRatio"
-                class="object-cover max-h-[80vh] w-full absolute inset-0"
+                class="object-cover max-h-[80vh] w-full h-full absolute inset-0"
               />
             </DialogTrigger>
           </DialogImage>
@@ -178,14 +182,31 @@ function hasExtra(extra: FileMetaJson["extra"]) {
             :src="content.url"
           />
 
-          <a
+          <div
             v-else
-            :href="content.url"
-            target="_blank"
-            rel="noopener noreferrer"
+            class="sm:w-72 flex flex-col items-center p-4 gap-2 relative"
           >
-            <Badge>{{ content.mime }}</Badge>
-          </a>
+            <div class="w-full h-full relative">
+              <File class="w-full h-full"></File>
+              <div
+                class="absolute inset-y-9 inset-x-16 pt-20 text-center hidden sm:visible"
+                v-for="ext in [
+                  content.url.slice(
+                    content.url.indexOf('.', content.url.lastIndexOf('/')) + 1
+                  ),
+                ]"
+              >
+                <span v-if="ext.length <= 3" class="text-6xl capitalize">{{ ext }}</span>
+                <span v-else class="block w-full text-4xl capitalize text-ellipsis overflow-hidden">{{ ext }}</span>
+              </div>
+            </div>
+            <a target="_blank" :href="content.url" rel="noopener noreferrer">
+              <Badge class="py-1 px-2">
+                <ArrowDown class="h-4" />
+                {{ content.url.slice(content.url.lastIndexOf("/") + 1) }}
+              </Badge>
+            </a>
+          </div>
         </Card>
       </template>
     </div>
