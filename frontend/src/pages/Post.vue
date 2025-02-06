@@ -7,7 +7,7 @@ import type { PostAPI } from "@/api";
 import { useFetch } from "@vueuse/core";
 import { ChevronLeft } from "lucide-vue-next";
 import { marked } from "marked";
-import { computed, nextTick } from "vue";
+import { computed, nextTick, ref } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import type { FileMetaJson } from "@api/FileMetaJson";
 import { DialogTrigger } from "@/components/ui/dialog";
@@ -23,6 +23,7 @@ const url = computed(
   () =>
     getUrlWithParams("/api/post", { post: (lastId = id.value ?? lastId) }).href
 );
+
 const {
   data: post,
   statusCode,
@@ -93,13 +94,13 @@ function hasExtra(extra: FileMetaJson["extra"]) {
         <RouterLink v-if="author" :to="`/author/${author.id}`">
           <Badge title="Author">{{ author.name }}</Badge>
         </RouterLink>
-        <Skeleton v-else class="rounded-full w-24 my-px" />
+        <Skeleton v-else class="rounded-full w-24 h-[22px]" />
         <a v-if="post?.source" :href="post.source">
           <Badge variant="secondary">source</Badge>
         </a>
       </div>
       <div class="flex gap-2 my-4">
-        <Skeleton v-if="!post" v-for="_ in 2" class="rounded-full w-[120px]" />
+        <Skeleton v-if="!post" v-for="_ in 2" class="rounded-full w-[120px] h-[22px]" />
         <template v-else>
           <Badge
             class="bg-blue-300 dark:bg-blue-600"
@@ -114,12 +115,11 @@ function hasExtra(extra: FileMetaJson["extra"]) {
             >{{ new Date(post.published).toLocaleString("zh-CN") }}</Badge
           >
         </template>
-        <Skeleton
-          v-if="tags === undefined"
-          v-for="width in ['20', '16', '10']"
-          class="rounded-full"
-          :class="'w-' + width"
-        />
+        <template v-if="tags === undefined">
+          <Skeleton class="rounded-full w-20" />
+          <Skeleton class="rounded-full w-16" />
+          <Skeleton class="rounded-full w-10" />
+        </template>
         <Badge v-else v-for="tag in tags" variant="secondary">{{
           tag.name
         }}</Badge>
@@ -127,7 +127,7 @@ function hasExtra(extra: FileMetaJson["extra"]) {
     </div>
     <Separator class="my-4" />
     <div
-      class="flex flex-col gap-4 pt-4  px-4 lg:w-[1024px] mx-auto md:border-x md:px-6"
+      class="flex flex-col gap-4 pt-4 px-4 lg:w-[1024px] mx-auto md:border-x md:px-6"
       :class="$style.content"
     >
       <template v-if="isFetching">
