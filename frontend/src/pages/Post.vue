@@ -86,7 +86,7 @@ function hasExtra(extra: FileMetaJson["extra"]) {
     </RouterLink>
     <div class="capitalize">
       <h1 class="md:text-4xl text-2xl mt-4 font-bold text-center">
-        <Skeleton v-if="!post" class="w-[12em] h-[1.1em] mx-auto" />
+        <Skeleton v-if="!post" class="w-[12em] h-[32px] md:h-[40px] mx-auto" />
         <template v-else>{{ post.title }}</template>
       </h1>
 
@@ -94,7 +94,7 @@ function hasExtra(extra: FileMetaJson["extra"]) {
         <RouterLink v-if="author" :to="`/author/${author.id}`">
           <Badge title="Author">{{ author.name }}</Badge>
         </RouterLink>
-        <Skeleton v-else class="rounded-full w-24 h-[22px]" />
+        <Skeleton v-else class="rounded-full w-24 h-[24px]" />
         <a v-if="post?.source" :href="post.source">
           <Badge variant="secondary">source</Badge>
         </a>

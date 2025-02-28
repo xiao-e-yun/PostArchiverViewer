@@ -104,7 +104,7 @@ const siblingCount = computed(
   <RouterLink to="/" class="flex p-2"> <ChevronLeft /> Home </RouterLink>
   <div class="pt-8 pb-4 flex flex-col gap-2">
     <template v-if="isAuthorFetching">
-      <Skeleton class="h-16 w-[360px]" />
+      <Skeleton class="h-11 md:h-16 w-[360px]" />
       <Skeleton class="h-6 w-64" />
     </template>
     <template v-else-if="author">
