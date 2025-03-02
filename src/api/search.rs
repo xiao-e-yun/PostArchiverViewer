@@ -50,9 +50,14 @@ pub fn sync_search_api(config: &Config, conn: &Connection) -> bool {
             )
             .unwrap();
 
-            info!("rebuilt search table");
-            conn.execute("INSERT INTO _posts_fts(_posts_fts) VALUES('rebuild')", [])
-                .unwrap();
+            info!("rebuilt database");
+            conn.execute_batch(
+                "
+            INSERT INTO _posts_fts(_posts_fts) VALUES('rebuild');
+            VACUUM;
+            ",
+            )
+            .unwrap();
         }
         Status::Off => {
             conn.execute_batch(
@@ -67,6 +72,9 @@ pub fn sync_search_api(config: &Config, conn: &Connection) -> bool {
             ",
             )
             .unwrap();
+
+            info!("rebuilt database");
+            conn.execute_batch("VACUUM;").unwrap();
         }
     };
 
