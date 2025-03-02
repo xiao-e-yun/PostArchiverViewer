@@ -27,3 +27,4 @@ axum-response-cache = "0.2.0"
 path-clean = "1.0.1"
 ts-rs = { version = "10.1.0" }
 lru = { version = "0.13.0" }
+dotenv = "0.15.0"

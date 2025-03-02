@@ -7,6 +7,7 @@ pub mod resource;
 use api::get_api_router;
 use clap::Parser;
 use config::Config;
+use dotenv::dotenv;
 use frontend::frontend;
 use images::get_images_router;
 use resource::get_resource_router;
@@ -17,11 +18,13 @@ use tower_http::{
     cors::{Any, CorsLayer},
     trace::TraceLayer,
 };
-use tracing::{info,error};
+use tracing::{error, info};
 
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt::init();
+    
+    dotenv().ok();
     let config = Config::parse();
 
     if !config.path.join("post-archiver.db").exists() {
