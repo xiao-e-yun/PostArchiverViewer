@@ -47,7 +47,7 @@ const filteredTags = computed(() => {
     searchTags.value.every((j) => j[0] !== i[0]),
   );
   return search.value
-    ? options.filter((option) => contains(option[1], search.value))
+    ? options.filter((option) => contains(option[1], search.value.trim()))
     : options;
 });
 
