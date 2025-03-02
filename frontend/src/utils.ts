@@ -4,15 +4,21 @@ export function getUrl(url: string | URL): URL {
   return new URL(url, location.origin);
 }
 
-export function getUrlWithParams(
-  url: string | URL,
-  params: Record<string, MaybeRefOrGetter<string | number | undefined>>,
-): URL {
+type UrlBaseParam = string | number | undefined;
+export type UrlParams = Record<
+  string,
+  MaybeRefOrGetter<UrlBaseParam | UrlBaseParam[]>
+>;
+export function getUrlWithParams(url: string | URL, params: UrlParams): URL {
   const urlObj = getUrl(url);
   Object.entries(params).forEach(([key, rawValue]) => {
     const value = toValue(rawValue);
     if (value === undefined) return;
-    urlObj.searchParams.set(key, String(value));
+    const values = Array.isArray(value) ? value : [value];
+    for (const value of values) {
+      if (value === "") continue;
+      urlObj.searchParams.append(key, String(value));
+    }
   });
   return urlObj;
 }

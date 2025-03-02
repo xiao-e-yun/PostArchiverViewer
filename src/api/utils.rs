@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use chrono::{DateTime, Utc};
 use post_archiver::{
     Author, AuthorId, Comment, Content, FileMetaId, Link, Post, PostId, PostTagId, Tag,
@@ -321,7 +319,7 @@ fn parse_json(json: String) -> Result<Value, rusqlite::Error> {
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
-pub struct TagJson(Tag);
+pub struct TagJson(PostTagId, String);
 
 impl TagJson {
     pub fn from_post(
@@ -340,7 +338,7 @@ impl TagJson {
         let mut data = Vec::new();
         while let Some(row) = rows.next()? {
             let tag = Tag::from_row(state, row)?;
-            data.push(TagJson(tag));
+            data.push(TagJson(tag.id, tag.name));
         }
 
         Ok(data)
@@ -353,7 +351,7 @@ impl TagJson {
         let mut data = Vec::new();
         while let Some(row) = rows.next()? {
             let tag = Tag::from_row(state, row)?;
-            data.push(TagJson(tag));
+            data.push(TagJson(tag.id, tag.name));
         }
 
         Ok(data)
@@ -369,13 +367,5 @@ impl FromRow for Tag {
         let name: String = row.get(1)?;
 
         Ok(Tag { id, name })
-    }
-}
-
-impl Deref for TagJson {
-    type Target = Tag;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
     }
 }

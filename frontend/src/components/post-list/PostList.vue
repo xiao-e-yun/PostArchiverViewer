@@ -2,10 +2,11 @@
 import { computed, onMounted, onUnmounted, provide, ref, watch } from "vue";
 import { Separator } from "../ui/separator";
 import PostListControl from "./PostListControl.vue";
-import { getUrlWithParams } from "@/utils";
+import { getUrlWithParams, type UrlParams } from "@/utils";
 import {
   extendRef,
   refThrottled,
+  useEventBus,
   useFetch,
   useLocalStorage,
 } from "@vueuse/core";
@@ -13,13 +14,14 @@ import type { PostsAPI } from "@/api";
 import {
   postListContentKey,
   postListControlKey,
+  postListRestoreKey,
   postsPrePageKey,
 } from "./utils";
 import PostListContent from "./PostListContent.vue";
 
 const props = defineProps<{
   url: string;
-  query: Record<string, string | number | undefined>;
+  query: UrlParams;
 }>();
 
 const postsPrePage = useLocalStorage(postsPrePageKey, 20);
@@ -66,17 +68,23 @@ const errorText = computed(() => {
   return "Something went wrong.";
 });
 
-const restorePageIndex = () => {
-  const params = new URLSearchParams(window.location.search);
-  const index = params.get("page") || "1";
-  pageIndex.value = parseInt(index);
+const restorePageIndex = (value?: number) => {
+  const index =
+    value ??
+    parseInt(new URLSearchParams(window.location.search).get("page") || "1");
+  pageIndex.value = index;
 };
 
+const bus = useEventBus(postListRestoreKey);
+bus.on(restorePageIndex);
+
+const popstateRestorePageIndex = () => restorePageIndex();
 onMounted(() => {
-  addEventListener("popstate", restorePageIndex);
+  addEventListener("popstate", popstateRestorePageIndex);
 });
 onUnmounted(() => {
-  removeEventListener("popstate", restorePageIndex);
+  removeEventListener("popstate", popstateRestorePageIndex);
+  bus.off(restorePageIndex);
 });
 </script>
 

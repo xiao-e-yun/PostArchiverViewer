@@ -1,3 +1,4 @@
+pub mod search;
 pub mod utils;
 
 use std::{
@@ -15,6 +16,7 @@ use axum::{
 use lru::LruCache;
 use post_archiver::{Author, AuthorId, Post, PostId};
 use rusqlite::Connection;
+use search::{get_search_api, sync_search_api};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use ts_rs::TS;
@@ -25,8 +27,9 @@ use crate::config::Config;
 #[derive(Clone)]
 pub struct AppState {
     conn: Arc<Mutex<Connection>>,
-    cache: Arc<Mutex<LruCache<u32, u32>>>,
+    cache: Arc<Mutex<LruCache<Vec<u8>, u32>>>,
     config: Config,
+    full_text_search: bool,
 }
 
 impl AppState {
@@ -71,16 +74,27 @@ impl<T: Serialize> IntoResponse for APIResponse<T> {
 pub fn get_api_router(config: &Config) -> Router {
     let path = config.path.clone();
     let conn = Connection::open(path.join("post-archiver.db")).unwrap();
+
+    // Create futures table
+    conn.execute_batch("
+    CREATE TABLE IF NOT EXISTS _post_archiver_viewer (future TEXT PRIMARY KEY, value INTEGER DEFAULT 0);
+    INSERT OR IGNORE INTO _post_archiver_viewer (future) VALUES ('search-full-text');
+    ").unwrap();
+    
+    let full_text_search = sync_search_api(config, &conn);
+
     let conn = Arc::new(Mutex::new(conn));
     let state = AppState {
-        cache: Arc::new(Mutex::new(LruCache::new(NonZero::new(10).unwrap()))),
+        cache: Arc::new(Mutex::new(LruCache::new(NonZero::new(20).unwrap()))),
         config: config.clone(),
+        full_text_search,
         conn,
     };
 
     Router::new()
         .route("/authors", get(get_authors_api))
         .route("/author", get(get_author_api))
+        .route("/search", get(get_search_api))
         .route("/posts", get(get_posts_api))
         .route("/post", get(get_post_api))
         .route("/tags", get(get_tags_api))
@@ -188,7 +202,7 @@ async fn get_posts_api(
         "" => posts.len() as u32,
         _ => {
             let mut cache = state.cache.lock().unwrap();
-            let key = query.author;
+            let key = postcard::to_allocvec(&query.author).unwrap();
             match cache.get(&key) {
                 Some(total) => *total,
                 None => {
@@ -248,6 +262,14 @@ async fn get_tags_api(
     Ok(APIResponse { data })
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct InfoJson {
+    authors: u32,
+    posts: u32,
+    files: u32,
+}
+
 async fn get_info_api(State(state): State<AppState>) -> Result<APIResponse<Value>, StatusCode> {
     let mut conn = state.conn();
     let tx = conn
@@ -271,12 +293,4 @@ async fn get_info_api(State(state): State<AppState>) -> Result<APIResponse<Value
             "files":count_files,
         }),
     })
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct InfoJson {
-    authors: u32,
-    posts: u32,
-    files: u32,
 }
