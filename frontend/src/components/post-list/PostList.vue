@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { computed, provide, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, provide, ref, watch } from "vue";
 import { Separator } from "../ui/separator";
 import PostListControl from "./PostListControl.vue";
-import { getUrlWithParams, urlParamIntoString } from "@/utils";
+import { getUrlWithParams } from "@/utils";
 import {
   extendRef,
   refThrottled,
   useFetch,
   useLocalStorage,
-  useUrlSearchParams,
 } from "@vueuse/core";
 import type { PostsAPI } from "@/api";
 import {
@@ -25,14 +24,11 @@ const props = defineProps<{
 
 const postsPrePage = useLocalStorage(postsPrePageKey, 20);
 
-const searchParams = useUrlSearchParams("history", { writeMode: "push" });
+const pageIndex = ref(
+  parseInt(new URLSearchParams(window.location.search).get("page") || "1"),
+);
 
-const pageIndex = ref(parseInt(urlParamIntoString(searchParams.page) || "1"));
 const pageThrottled = refThrottled(pageIndex, 500);
-watch(pageThrottled, (value) => {
-  if (value === 1) delete searchParams.page;
-  else searchParams.page = value.toString();
-});
 
 const url = computed(
   () =>
@@ -68,6 +64,19 @@ provide(postListContentKey, {
 const errorText = computed(() => {
   if (data.value) return "No posts found.";
   return "Something went wrong.";
+});
+
+const restorePageIndex = () => {
+  const params = new URLSearchParams(window.location.search);
+  const index = params.get("page") || "1";
+  pageIndex.value = parseInt(index);
+};
+
+onMounted(() => {
+  addEventListener("popstate", restorePageIndex);
+});
+onUnmounted(() => {
+  removeEventListener("popstate", restorePageIndex);
 });
 </script>
 

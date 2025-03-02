@@ -20,6 +20,7 @@ import {
   SelectItem,
 } from "../ui/select";
 import { Button } from "../ui/button";
+import { useRouter } from "vue-router";
 
 const { total, pageIndex, postsPrePage } = inject(postListControlKey)!;
 
@@ -28,6 +29,15 @@ const postsPrePageSelectValue = computed({
   get: () => postsPrePage.value?.toString(),
   set: (value: string) => (postsPrePage.value = parseInt(value)),
 });
+
+const router = useRouter();
+function updatePageIndex(page: number) {
+  const query = { ...router.currentRoute.value.query };
+  if (page !== 1) query.page = page.toString();
+  router.push({ query });
+
+  pageIndex.value = page;
+}
 </script>
 
 <template>
@@ -46,11 +56,12 @@ const postsPrePageSelectValue = computed({
 
     <Pagination
       v-slot="{ page }"
-      v-model:page="pageIndex"
+      :page="pageIndex"
       :total="total"
       :sibling-count="siblingCount"
       :show-edges="!smallMode"
       :items-per-page="postsPrePage"
+      @update:page="updatePageIndex"
     >
       <PaginationList v-slot="{ items }" class="flex items-center gap-1">
         <PaginationFirst />
