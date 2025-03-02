@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import Image from "@/components/image/Image.vue";
+import Image from "@/components/image/DynamicImage.vue";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -24,11 +24,22 @@ watch(authorsEl, (el) => el && useLazyLoad().update());
 </script>
 
 <template>
-  <div v-if="isFetching" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-    <Skeleton v-for="_ in 8" class="aspect-video" />
+  <div
+    v-if="isFetching"
+    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+  >
+    <Skeleton v-for="i in 8" :key="i" class="aspect-video" />
   </div>
-  <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" ref="authorsList">
-    <RouterLink v-for="author in authors" :to="`/author/${author.id}`">
+  <div
+    v-else
+    ref="authorsList"
+    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+  >
+    <RouterLink
+      v-for="author in authors"
+      :key="author.id"
+      :to="`/author/${author.id}`"
+    >
       <Card
         class="transition-transform hover:scale-105 hover:z-10 relative aspect-video"
       >
@@ -44,6 +55,7 @@ watch(authorsEl, (el) => el && useLazyLoad().update());
           <CardFooter class="flex gap-2 capitalize">
             <a
               v-for="link in author.links.slice(0, 2)"
+              :key="link.url"
               :href="link.url"
               @click.stop
             >

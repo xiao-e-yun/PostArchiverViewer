@@ -1,31 +1,41 @@
 <script setup lang="ts">
-import { Info, Moon, Package, Search, Sun } from 'lucide-vue-next'
+import { Info, Moon, Package, Search, Sun } from "lucide-vue-next";
 
-import { useColorMode } from '@vueuse/core';
-import { RouterView } from 'vue-router';
-import Button from './components/ui/button/Button.vue';
+import { useColorMode } from "@vueuse/core";
+import { RouterView } from "vue-router";
+import { Button } from "./components/ui/button";
 
 const mode = useColorMode();
 
 const links = [
-  { name: 'Search', path: '/search', icon: Search },
-  { name: 'About', path: '/about', icon: Info },
-]
+  { name: "Search", path: "/search", icon: Search },
+  { name: "About", path: "/about", icon: Info },
+];
 </script>
 
 <template>
   <div class="flex min-h-screen w-full flex-col">
-    <header class="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-30">
+    <header
+      class="sticky top-0 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6 z-30"
+    >
       <RouterLink to="/" class="flex items-center gap-2">
         <Package class="h-8 w-8" />
-        <span class="text-nowrap text-lg hidden md:inline font-semibold">Post Archiver</span>
+        <span class="text-nowrap text-lg hidden md:inline font-semibold"
+          >Post Archiver</span
+        >
       </RouterLink>
-      <div class="flex w-full items-center gap-4 md:ml-auto md:gap-2 lg:gap-4 justify-end">
-        <RouterLink v-for="{ name, path, icon } in links" :to="path">
+      <div
+        class="flex w-full items-center gap-4 md:ml-auto md:gap-2 lg:gap-4 justify-end"
+      >
+        <RouterLink
+          v-for="{ name, path, icon } in links"
+          :key="path"
+          :to="path"
+        >
           <component :is="icon" />
           <span class="sr-only">{{ name }}</span>
         </RouterLink>
-        <Button @click="mode = mode === 'dark' ? 'light' : 'dark'" class="p-2">
+        <Button class="p-2" @click="mode = mode === 'dark' ? 'light' : 'dark'">
           <Sun v-if="mode === 'light'" />
           <Moon v-else />
         </Button>
@@ -46,10 +56,10 @@ const links = [
 </template>
 
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@300..700&family=Overpass:wght@500&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Comfortaa:wght@300..700&family=Overpass:wght@500&display=swap");
 
 body {
-  font-family: 'Comfortaa', sans-serif;
+  font-family: "Comfortaa", sans-serif;
 }
 
 /* for lazy loading images */

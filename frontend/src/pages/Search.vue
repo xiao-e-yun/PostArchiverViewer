@@ -1,7 +1,3 @@
-<script lang="ts" setup>
+<script lang="ts" setup></script>
 
-</script>
-
-<template>
-  TODO
-</template>
+<template>TODO</template>

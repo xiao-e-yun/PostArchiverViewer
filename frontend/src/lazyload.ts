@@ -1,4 +1,4 @@
-import { createGlobalState } from "@vueuse/core"
-import LazyLoad from "vanilla-lazyload"
+import { createGlobalState } from "@vueuse/core";
+import LazyLoad from "vanilla-lazyload";
 
-export const useLazyLoad = createGlobalState(() => new LazyLoad())
+export const useLazyLoad = createGlobalState(() => new LazyLoad());

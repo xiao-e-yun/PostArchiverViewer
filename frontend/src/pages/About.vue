@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import type { InfoAPI } from '@/api';
-import { ofetch } from 'ofetch';
+import type { InfoAPI } from "@/api";
+import { ofetch } from "ofetch";
 
 const info = await ofetch<InfoAPI>("/api/info");
 </script>

@@ -1,5 +1,4 @@
 <script lang="ts" setup>
-import Image from "@/components/image/Image.vue";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -41,6 +40,7 @@ import {
 } from "@/components/ui/pagination";
 import { Button } from "@/components/ui/button";
 import { useLazyLoad } from "@/lazyload";
+import DynamicImage from "@/components/image/DynamicImage.vue";
 
 let lastId = "0" as string;
 
@@ -48,7 +48,7 @@ const route = useRoute();
 const router = useRouter();
 const id = computed(() => route.params.author as string | undefined);
 const authorUrl = computed(
-  () => `/api/author?author=${parseInt((lastId = id.value ?? lastId))}`
+  () => `/api/author?author=${parseInt((lastId = id.value ?? lastId))}`,
 );
 const { data: author, isFetching: isAuthorFetching } = useFetch(authorUrl, {
   refetch: true,
@@ -56,12 +56,12 @@ const { data: author, isFetching: isAuthorFetching } = useFetch(authorUrl, {
 
 const postsPrePage = useLocalStorage(
   "post-archiver-viewer.posts-per-page",
-  "20"
+  "20",
 );
-watch(postsPrePage, () => (page.value = 1));
+watch(postsPrePage, () => (pageIndex.value = 1));
 
 const searchParams = useUrlSearchParams();
-const page = computed({
+const pageIndex = computed({
   get: () => parseInt((searchParams.page as string | undefined) ?? "1"),
   set: (value: number | string) => {
     searchParams.page = value.toString();
@@ -74,8 +74,8 @@ const postsUrl = computed(
     getUrlWithParams("/api/posts", {
       author: parseInt((lastId = id.value ?? lastId)),
       limit: postsPrePage.value,
-      page: page.value - 1,
-    }).href
+      page: pageIndex.value - 1,
+    }).href,
 );
 
 const { data: postsData, isFetching: isPostsFetching } = useFetch(postsUrl, {
@@ -96,7 +96,7 @@ const siblingCount = computed(
       xl: 3,
       "2xl": 3,
       "": 0,
-    }[breakpoints.active().value])
+    })[breakpoints.active().value],
 );
 </script>
 
@@ -109,7 +109,7 @@ const siblingCount = computed(
     </template>
     <template v-else-if="author">
       <h1 class="text-4xl md:text-6xl py-0.5">{{ author.name }}</h1>
-      <div v-for="link in author.links" class="capitalize">
+      <div v-for="link in author.links" :key="link.url" class="capitalize">
         <a :href="link.url">
           <Badge>{{ link.name }}</Badge>
         </a>
@@ -137,11 +137,11 @@ const siblingCount = computed(
 
     <Pagination
       v-slot="{ page }"
+      v-model:page="pageIndex"
       :total="postsData?.total ?? 0"
       :sibling-count="siblingCount"
       :show-edges="!isSmall"
       :items-per-page="parseInt(postsPrePage)"
-      v-model:page="page"
     >
       <PaginationList v-slot="{ items }" class="flex items-center gap-1">
         <PaginationFirst />
@@ -175,7 +175,8 @@ const siblingCount = computed(
     class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"
   >
     <Skeleton
-      v-for="_ in parseInt(postsPrePage)"
+      v-for="i in parseInt(postsPrePage)"
+      :key="i"
       class="pt-[100%] h-[122px] box-content"
     />
   </div>
@@ -184,11 +185,15 @@ const siblingCount = computed(
     ref="postsList"
     class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"
   >
-    <RouterLink v-for="post in postsData.posts" :to="`/post/${post.id}`">
+    <RouterLink
+      v-for="post in postsData.posts"
+      :key="post.id"
+      :to="`/post/${post.id}`"
+    >
       <Card
         class="transition-transform hover:scale-105 hover:z-10 relative w-full h-full overflow-hidden"
       >
-        <Image
+        <DynamicImage
           v-if="post.thumb"
           :src="post.thumb.url"
           :aspect="1 / 1"
@@ -229,11 +234,11 @@ const siblingCount = computed(
 
     <Pagination
       v-slot="{ page }"
+      v-model:page="pageIndex"
       :total="postsData?.total ?? 0"
       :sibling-count="siblingCount"
       :show-edges="!isSmall"
       :items-per-page="parseInt(postsPrePage)"
-      v-model:page="page"
     >
       <PaginationList v-slot="{ items }" class="flex items-center gap-1">
         <PaginationFirst />

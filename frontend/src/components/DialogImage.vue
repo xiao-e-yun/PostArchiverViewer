@@ -47,10 +47,11 @@ const scale = ref(MIN_SCALE);
 const limitScale = (value: number) =>
   Math.max(MIN_SCALE, Math.min(MAX_SCALE, value));
 
-const setScale = (value: number) => scale.value = limitScale(scale.value + value);
+const setScale = (value: number) =>
+  (scale.value = limitScale(scale.value + value));
 const whellSize = useThrottleFn((e: WheelEvent) => {
   const prevScale = scale.value;
-  setScale(-e.deltaY / 100 / 2)
+  setScale(-e.deltaY / 100 / 2);
 
   const $overlay = overlay.value;
   const $dialog = dialog.value;
@@ -100,7 +101,7 @@ const style = computed(() => ({
 }));
 
 const displayScale = computed(() => (scale.value * 100).toFixed());
-const [tooltipScale, toggleTooltipScale] = useToggle(true)
+const [tooltipScale, toggleTooltipScale] = useToggle(true);
 </script>
 
 <template>
@@ -108,27 +109,32 @@ const [tooltipScale, toggleTooltipScale] = useToggle(true)
     <slot />
     <DialogPortal>
       <DialogOverlay
+        ref="overlay"
         class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
         @wheel.ctrl.prevent="whellSize"
-        ref="overlay"
       >
         <DialogContent
+          v-bind="forwarded"
+          ref="dialog"
           :style="style"
           :class="
             cn(
               'relative z-50 grid w-auto max-w-none my-8 gap-4 border border-border bg-background p-6 shadow-lg rounded-none',
-              props.class
+              props.class,
             )
           "
-          v-bind="forwarded"
-          @pointer-down-outside="(event) => {
-                const originalEvent = event.detail.originalEvent;
-                const target = originalEvent.target as HTMLElement;
-                if (originalEvent.offsetX > target.clientWidth || originalEvent.offsetY > target.clientHeight) {
-                    event.preventDefault();
-                }
-            }"
-          ref="dialog"
+          @pointer-down-outside="
+            (event) => {
+              const originalEvent = event.detail.originalEvent;
+              const target = originalEvent.target as HTMLElement;
+              if (
+                originalEvent.offsetX > target.clientWidth ||
+                originalEvent.offsetY > target.clientHeight
+              ) {
+                event.preventDefault();
+              }
+            }
+          "
         >
           <img :src="src" :style="style" />
           <DialogTitle class="sr-only">{{ src }} of image</DialogTitle>
@@ -143,11 +149,20 @@ const [tooltipScale, toggleTooltipScale] = useToggle(true)
             class="fixed bottom-5 left-3 z-[100] bg-background p-1 text-base rounded-md flex border"
           >
             <div class="flex gap-1 items-center">
-              <Search class="w-6 h-6 p-0.5 hover:bg-secondary rounded-sm" @click="toggleTooltipScale()" />
+              <Search
+                class="w-6 h-6 p-0.5 hover:bg-secondary rounded-sm"
+                @click="toggleTooltipScale()"
+              />
               <template v-if="tooltipScale">
                 <span class="align-baseline">{{ displayScale }} %</span>
-                <Plus class="w-6 h-6 p-0.5 hover:bg-secondary rounded-sm" @click="setScale(0.5)" />
-                <Minus class="w-6 h-6 p-0.5 hover:bg-secondary rounded-sm" @click="setScale(-0.5)" />
+                <Plus
+                  class="w-6 h-6 p-0.5 hover:bg-secondary rounded-sm"
+                  @click="setScale(0.5)"
+                />
+                <Minus
+                  class="w-6 h-6 p-0.5 hover:bg-secondary rounded-sm"
+                  @click="setScale(-0.5)"
+                />
               </template>
             </div>
           </div>

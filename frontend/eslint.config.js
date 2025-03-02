@@ -21,7 +21,20 @@ export default typescriptEslint.config(
         parser: typescriptEslint.parser,
       },
     },
-    rules: {},
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          args: "all",
+          argsIgnorePattern: "^_",
+          caughtErrors: "all",
+          caughtErrorsIgnorePattern: "^_",
+          destructuredArrayIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
+    },
   },
   {
     files: ["src/pages/**/*.vue"],

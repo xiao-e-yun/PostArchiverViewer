@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import Image from "@/components/image/Image.vue";
+import Image from "@/components/image/DynamicImage.vue";
 import { Badge } from "@/components/ui/badge";
 import Card from "@/components/ui/card/Card.vue";
 import { Separator } from "@/components/ui/separator";
@@ -21,7 +21,7 @@ const route = useRoute();
 const id = computed(() => route.params.post as string | undefined);
 const url = computed(
   () =>
-    getUrlWithParams("/api/post", { post: (lastId = id.value ?? lastId) }).href
+    getUrlWithParams("/api/post", { post: (lastId = id.value ?? lastId) }).href,
 );
 
 const {
@@ -37,7 +37,7 @@ const contents = computed(() => {
   if (!$post) return [];
 
   let textList = [];
-  let contents: (string | FileMetaJson)[] = [];
+  const contents: (string | FileMetaJson)[] = [];
   for (const c of $post.content) {
     if (typeof c === "string") {
       const markedContent = marked(c);
@@ -82,7 +82,7 @@ function hasExtra(extra: FileMetaJson["extra"]) {
     <RouterLink :to="author ? `/author/${author.id}` : `/`" class="flex p-2">
       <ChevronLeft />
       <Skeleton v-if="!author" class="w-20" />
-      <span class="font-bold" v-else>{{ author.name }}</span>
+      <span v-else class="font-bold">{{ author.name }}</span>
     </RouterLink>
     <div class="capitalize">
       <h1 class="md:text-4xl text-2xl mt-4 font-bold text-center">
@@ -100,11 +100,13 @@ function hasExtra(extra: FileMetaJson["extra"]) {
         </a>
       </div>
       <div class="flex gap-2 my-4">
-        <Skeleton
-          v-if="!post"
-          v-for="_ in 2"
-          class="rounded-full w-[120px] h-[22px]"
-        />
+        <template v-if="!post">
+          <Skeleton
+            v-for="i in 2"
+            :key="i"
+            class="rounded-full w-[120px] h-[22px]"
+          />
+        </template>
         <template v-else>
           <Badge
             class="bg-blue-300 dark:bg-blue-600"
@@ -124,9 +126,9 @@ function hasExtra(extra: FileMetaJson["extra"]) {
           <Skeleton class="rounded-full w-16" />
           <Skeleton class="rounded-full w-10" />
         </template>
-        <Badge v-else v-for="tag in tags" variant="secondary">{{
-          tag.name
-        }}</Badge>
+        <Badge v-for="tag in tags" v-else :key="tag.id" variant="secondary">
+          {{ tag.name }}
+        </Badge>
       </div>
     </div>
     <Separator class="my-4" />
@@ -141,8 +143,10 @@ function hasExtra(extra: FileMetaJson["extra"]) {
         <Skeleton style="width: 21%; height: 1em" />
         <Skeleton style="aspect-ratio: 0.8; height: 80vh; margin: auto" />
       </template>
-      <template v-else v-for="content in contents">
+      <template v-for="content in contents" v-else :key="content">
+        <!-- eslint-disable vue/no-v-html -->
         <div v-if="typeof content === 'string'" v-html="content" />
+        <!--eslint-enable-->
         <Card
           v-else
           class="m-auto overflow-hidden max-h-[80vh] max-w-full relative"
@@ -189,15 +193,22 @@ function hasExtra(extra: FileMetaJson["extra"]) {
             <div class="w-full h-full relative">
               <File class="w-full h-full"></File>
               <div
-                class="absolute inset-y-9 inset-x-16 pt-20 text-center hidden sm:visible"
                 v-for="ext in [
                   content.url.slice(
-                    content.url.indexOf('.', content.url.lastIndexOf('/')) + 1
+                    content.url.indexOf('.', content.url.lastIndexOf('/')) + 1,
                   ),
                 ]"
+                :key="ext"
+                class="absolute inset-y-9 inset-x-16 pt-20 text-center hidden sm:visible"
               >
-                <span v-if="ext.length <= 3" class="text-6xl capitalize">{{ ext }}</span>
-                <span v-else class="block w-full text-4xl capitalize text-ellipsis overflow-hidden">{{ ext }}</span>
+                <span v-if="ext.length <= 3" class="text-6xl capitalize">{{
+                  ext
+                }}</span>
+                <span
+                  v-else
+                  class="block w-full text-4xl capitalize text-ellipsis overflow-hidden"
+                  >{{ ext }}</span
+                >
               </div>
             </div>
             <a target="_blank" :href="content.url" rel="noopener noreferrer">
