@@ -73,15 +73,15 @@ impl<T: Serialize> IntoResponse for APIResponse<T> {
 
 pub fn get_api_router(config: &Config) -> Router {
     let path = config.path.clone();
-    let conn = Connection::open(path.join("post-archiver.db")).unwrap();
+    let mut conn = Connection::open(path.join("post-archiver.db")).unwrap();
 
     // Create futures table
     conn.execute_batch("
     CREATE TABLE IF NOT EXISTS _post_archiver_viewer (future TEXT PRIMARY KEY, value INTEGER DEFAULT 0);
     INSERT OR IGNORE INTO _post_archiver_viewer (future) VALUES ('search-full-text');
     ").unwrap();
-    
-    let full_text_search = sync_search_api(config, &conn);
+
+    let full_text_search = sync_search_api(config, &mut conn);
 
     let conn = Arc::new(Mutex::new(conn));
     let state = AppState {

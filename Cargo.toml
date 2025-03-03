@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-post-archiver = { version = "0.2.5", features = ["utils","typescript"] }
+post-archiver = { version = "0.2.5", features = ["utils", "typescript"] }
 axum = "0.8.1"
 axum-reverse-proxy = "0.5.1"
 mime_guess = "2.0.5"
@@ -14,7 +14,13 @@ serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.135"
 tokio = { version = "1.43.0", features = ["rt-multi-thread"] }
 tower = "0.5.2"
-tower-http = { version = "0.6.2", features = ["fs","compression-br","compression-gzip","cors","trace"] }
+tower-http = { version = "0.6.2", features = [
+    "fs",
+    "compression-br",
+    "compression-gzip",
+    "cors",
+    "trace",
+] }
 tracing = "0.1.41"
 tracing-subscriber = "0.3.19"
 chrono = "0.4.39"
@@ -22,7 +28,6 @@ clap = { version = "4.5.26", features = ["derive", "env"] }
 clap-verbosity-flag = { version = "3.0.2", features = ["tracing"] }
 image = "0.25.5"
 fast_image_resize = { version = "5.1.1", features = ["image", "rayon"] }
-tower-cache = "0.0.1"
 axum-response-cache = "0.2.0"
 path-clean = "1.0.1"
 ts-rs = { version = "10.1.0" }
@@ -30,3 +35,5 @@ lru = { version = "0.13.0" }
 dotenv = "0.15.0"
 postcard = { version = "1.1.1", features = ["use-std"] }
 axum-extra = { version = "0.10.0", features = ["query"] }
+libsimple = "0.3"
+tempfile = "3.17.1"

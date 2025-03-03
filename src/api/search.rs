@@ -1,3 +1,5 @@
+use std::mem;
+
 use axum::{extract::State, http::StatusCode};
 use axum_extra::extract::Query;
 use post_archiver::Post;
@@ -12,7 +14,7 @@ use super::{
     APIResponse, AppState, AuthorPostsJson,
 };
 
-pub fn sync_search_api(config: &Config, conn: &Connection) -> bool {
+pub fn sync_search_api(config: &Config, conn: &mut Connection) -> bool {
     let future = config.futures.search_full_text;
 
     let old_status = conn
@@ -23,17 +25,36 @@ pub fn sync_search_api(config: &Config, conn: &Connection) -> bool {
         )
         .unwrap();
 
-    let Some(status) = future else {
-        info!("search-full-text: {}", old_status.enabled());
-        return old_status.is_on();
+    let status = future.or(Some(old_status)).or(Some(Status::Off)).unwrap();
+    let changed = old_status != status;
+
+    info!(
+        "search-full-text: {} {}",
+        status.enabled(),
+        if changed { "(changed)" } else { "" }
+    );
+
+    if status.is_on() {
+        info!("initializing full-text search");
+        let dir = tempfile::tempdir().unwrap();
+        libsimple::enable_auto_extension().unwrap();
+        libsimple::release_dict(&dir).unwrap();
+
+        let old = mem::replace(conn, Connection::open(conn.path().unwrap()).unwrap());
+        old.close().unwrap();
+        libsimple::set_dict(&conn, &dir).unwrap();
+
+        if !changed {
+            info!("rebuilt full-text search");
+            conn.execute("INSERT INTO _posts_fts(_posts_fts) VALUES('rebuild')", [])
+                .unwrap();
+        }
+    }
+
+    if !changed {
+        return status.is_on();
     };
 
-    if old_status == status {
-        info!("search-full-text: {} (no change)", old_status.enabled());
-        return old_status.is_on();
-    };
-
-    info!("search-full-text: {} (changed)", status.enabled());
     match status {
         Status::On => {
             info!("creating search table");
@@ -41,16 +62,13 @@ pub fn sync_search_api(config: &Config, conn: &Connection) -> bool {
                 "
                 BEGIN;
                 INSERT OR REPLACE INTO _post_archiver_viewer (future, value) VALUES ('search-full-text', 1);
-                CREATE VIRTUAL TABLE _posts_fts USING fts5(title, content, content=posts, content_rowid=id);
-                CREATE TRIGGER posts_fts_ai AFTER INSERT ON posts BEGIN INSERT INTO _posts_fts(rowid, title, content) VALUES (new.id, new.title, new.content); END;
-                CREATE TRIGGER posts_fts_ad AFTER DELETE ON posts BEGIN INSERT INTO _posts_fts(_posts_fts, rowid, title, content) VALUES ('delete', old.id, old.title, old.content); END;
-                CREATE TRIGGER posts_fts_au AFTER UPDATE ON posts BEGIN INSERT INTO _posts_fts(_posts_fts, rowid, title, content) VALUES ('delete', old.id, old.title, old.content); INSERT INTO _posts_fts(rowid, title, content) VALUES (new.id, new.title, new.content); END;
+                CREATE VIRTUAL TABLE _posts_fts USING fts5(title, content, content=posts, content_rowid=id, tokenize = 'simple');
                 COMMIT;
             "
             )
             .unwrap();
 
-            info!("rebuilt database");
+            info!("rebuilt full-text search");
             conn.execute_batch(
                 "
             INSERT INTO _posts_fts(_posts_fts) VALUES('rebuild');
@@ -65,9 +83,6 @@ pub fn sync_search_api(config: &Config, conn: &Connection) -> bool {
                 BEGIN;
                 INSERT OR REPLACE INTO _post_archiver_viewer (future, value) VALUES ('search-full-text', 0);
                 DROP TABLE _posts_fts;
-                DROP TRIGGER posts_fts_ai;
-                DROP TRIGGER posts_fts_ad;
-                DROP TRIGGER posts_fts_au;
                 COMMIT;
             ",
             )
