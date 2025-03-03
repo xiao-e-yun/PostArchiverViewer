@@ -69,6 +69,15 @@ jobs:
           # (required) Comma-separated list of binary names (non-extension portion of filename) to build and upload.
           # Note that glob pattern is not supported yet.
           bin: post-archiver-viewer
+          # (optional) Archive name (non-extension portion of filename) to be uploaded.
+          # [default value: $bin-$target]
+          # [possible values: the following variables and any string]
+          #   variables:
+          #     - $bin    - Binary name (non-extension portion of filename).
+          #     - $target - Target triple.
+          #     - $tag    - Tag of this release.
+          # When multiple binary names are specified, default archive name or $bin variable cannot be used.
+          archive: $bin-${{ matrix.os }}
           # (optional) Target triple, default is host triple.
           # This is optional but it is recommended that this always be set to
           # clarify which target you are building for if macOS is included in
@@ -84,4 +93,15 @@ jobs:
           # [possible values: all, unix, windows, none]
           zip: windows
           # (required) GitHub token for uploading assets to GitHub Releases.
+          token: ${{ secrets.GH_TOKEN }}
+
+      # build full
+      - uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: post-archiver-viewer
+          archive: $bin-${{ matrix.os }}-full
+          features: full
+          target: ${{ matrix.target }}
+          tar: unix
+          zip: windows
           token: ${{ secrets.GH_TOKEN }}

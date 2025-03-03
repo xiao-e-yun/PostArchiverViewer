@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["full-text-search"]
+default = []
+full = ["full-text-search"]
 full-text-search = [
     "dep:libsimple",
     "dep:tempfile",
