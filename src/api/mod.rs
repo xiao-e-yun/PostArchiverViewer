@@ -3,6 +3,7 @@ pub mod utils;
 
 use std::{
     num::NonZero,
+    path::Path,
     sync::{Arc, Mutex},
 };
 
@@ -16,7 +17,7 @@ use axum::{
 use lru::LruCache;
 use post_archiver::{Author, AuthorId, Post, PostId};
 use rusqlite::Connection;
-use search::{get_search_api, sync_search_api};
+use search::get_search_api;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use ts_rs::TS;
@@ -29,7 +30,18 @@ pub struct AppState {
     conn: Arc<Mutex<Connection>>,
     cache: Arc<Mutex<LruCache<Vec<u8>, u32>>>,
     config: Config,
+    #[cfg(feature = "full-text-search")]
     full_text_search: bool,
+}
+
+impl AppState {
+    fn full_text_search(&self) -> bool {
+        #[cfg(feature = "full-text-search")]
+        let value = self.full_text_search;
+        #[cfg(not(feature = "full-text-search"))]
+        let value = false;
+        value
+    }
 }
 
 impl AppState {
@@ -73,22 +85,25 @@ impl<T: Serialize> IntoResponse for APIResponse<T> {
 
 pub fn get_api_router(config: &Config) -> Router {
     let path = config.path.clone();
-    let mut conn = Connection::open(path.join("post-archiver.db")).unwrap();
+
+    let conn = connect_database(path.as_path());
 
     // Create futures table
     conn.execute_batch("
-    CREATE TABLE IF NOT EXISTS _post_archiver_viewer (future TEXT PRIMARY KEY, value INTEGER DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS _post_archiver_viewer (future TEXT PRIMARY KEY, value INTEGER DEFAULT 0, extra TEXT DEFAULT '{}');
     INSERT OR IGNORE INTO _post_archiver_viewer (future) VALUES ('search-full-text');
     ").unwrap();
 
-    let full_text_search = sync_search_api(config, &mut conn);
+    #[cfg(feature = "full-text-search")]
+    let full_text_search = search::sync_search_api(&config, &conn);
 
     let conn = Arc::new(Mutex::new(conn));
     let state = AppState {
         cache: Arc::new(Mutex::new(LruCache::new(NonZero::new(20).unwrap()))),
         config: config.clone(),
-        full_text_search,
         conn,
+        #[cfg(feature = "full-text-search")]
+        full_text_search,
     };
 
     Router::new()
@@ -101,6 +116,23 @@ pub fn get_api_router(config: &Config) -> Router {
         .route("/info", get(get_info_api))
         .fallback(StatusCode::NOT_FOUND)
         .with_state(state)
+}
+
+pub fn connect_database(path: &Path) -> Connection {
+    #[cfg(feature = "full-text-search")]
+    let dir = {
+        let dir = tempfile::tempdir().unwrap();
+        libsimple::enable_auto_extension().unwrap();
+        libsimple::release_dict(&dir).unwrap();
+        dir
+    };
+
+    let conn = Connection::open(path.join("post-archiver.db")).unwrap();
+
+    #[cfg(feature = "full-text-search")]
+    libsimple::set_dict(&conn, &dir).unwrap();
+
+    conn
 }
 
 async fn get_authors_api(
@@ -170,10 +202,7 @@ async fn get_posts_api(
         .transaction()
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let pagination_sql = match (query.limit, query.page) {
-        (Some(limit), Some(page)) => format!("LIMIT {} OFFSET {}", limit, page * limit),
-        _ => "".to_string(),
-    };
+    let pagination_sql = generate_pagination(query.limit, query.page);
 
     let sql = format!(
         "SELECT * FROM posts WHERE author = ? ORDER BY updated DESC {}",
@@ -293,4 +322,11 @@ async fn get_info_api(State(state): State<AppState>) -> Result<APIResponse<Value
             "files":count_files,
         }),
     })
+}
+
+pub fn generate_pagination(limit: Option<u32>, page: Option<u32>) -> String {
+    match (limit, page) {
+        (Some(limit), Some(page)) => format!("LIMIT {} OFFSET {}", limit, page * limit),
+        _ => "".to_string(),
+    }
 }

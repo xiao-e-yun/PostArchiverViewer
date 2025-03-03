@@ -3,6 +3,13 @@ name = "post-archiver-viewer"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["full-text-search"]
+full-text-search = [
+    "dep:libsimple",
+    "dep:tempfile",
+]
+
 [dependencies]
 post-archiver = { version = "0.2.5", features = ["utils", "typescript"] }
 axum = "0.8.1"
@@ -35,5 +42,5 @@ lru = { version = "0.13.0" }
 dotenv = "0.15.0"
 postcard = { version = "1.1.1", features = ["use-std"] }
 axum-extra = { version = "0.10.0", features = ["query"] }
-libsimple = "0.3"
-tempfile = "3.17.1"
+libsimple =  { version = "0.3", optional = true }
+tempfile =  { version = "3.17.1", optional = true }

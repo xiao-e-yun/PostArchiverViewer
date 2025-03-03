@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize, Parser)]
 pub struct Config {
@@ -17,53 +17,17 @@ pub struct Config {
     pub port: u16,
 
     #[clap(flatten)]
-    pub futures: FuturesConfig,
+    pub futures: FutureConfig,
 
     #[clap(flatten)]
     pub resize: ResizeConfig,
 }
 
 #[derive(Debug, Clone, Deserialize, Parser)]
-pub struct FuturesConfig {
+pub struct FutureConfig {
+    #[cfg(feature = "full-text-search")]
     #[clap(long)]
-    pub search_full_text: Option<Status>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, clap::ValueEnum)]
-pub enum Status {
-    On,
-    Off,
-}
-
-impl Status {
-    pub fn from_u8(value: u8) -> Self {
-        match value {
-            1 => Status::On,
-            0 => Status::Off,
-            _ => unimplemented!(),
-        }
-    }
-
-    pub fn to_u8(&self) -> u8 {
-        match self {
-            Status::On => 1,
-            Status::Off => 0,
-        }
-    }
-
-    pub fn enabled(&self) -> String {
-        match self {
-            Status::On => "enabled".to_string(),
-            Status::Off => "disabled".to_string(),
-        }
-    }
-
-    pub fn is_on(&self) -> bool {
-        match self {
-            Status::On => true,
-            Status::Off => false,
-        }
-    }
+    pub full_text_search: Option<bool>,
 }
 
 #[derive(Debug, Clone, Deserialize, Parser)]
