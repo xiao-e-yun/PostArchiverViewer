@@ -76,7 +76,7 @@ const restorePageIndex = (value?: number) => {
 };
 
 const bus = useEventBus(postListRestoreKey);
-bus.on(restorePageIndex);
+const busStop = bus.on(restorePageIndex);
 
 const popstateRestorePageIndex = () => restorePageIndex();
 onMounted(() => {
@@ -84,7 +84,7 @@ onMounted(() => {
 });
 onUnmounted(() => {
   removeEventListener("popstate", popstateRestorePageIndex);
-  bus.off(restorePageIndex);
+  busStop();
 });
 </script>
 

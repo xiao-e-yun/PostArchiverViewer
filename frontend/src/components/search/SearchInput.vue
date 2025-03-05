@@ -17,16 +17,18 @@ import {
   TagsInputItemText,
 } from "@/components/ui/tags-input";
 import type { TagJson } from "@api/TagJson";
-import { useFetch } from "@vueuse/core";
+import { useEventBus, useFetch } from "@vueuse/core";
 import {
   useFilter,
   type AcceptableInputValue,
   type AcceptableValue,
 } from "reka-ui";
-import { computed, ref } from "vue";
+import { computed, onUnmounted, ref, toValue } from "vue";
 import { Button } from "../ui/button";
 import { SearchIcon } from "lucide-vue-next";
 import type { UrlParams } from "@/utils";
+import { last } from "lodash";
+import { searchRestoreKey } from "./utils";
 
 const emit = defineEmits<{
   search: [UrlParams];
@@ -46,9 +48,9 @@ const filteredTags = computed(() => {
   const options = tags?.filter((i) =>
     searchTags.value.every((j) => j[0] !== i[0]),
   );
-  return search.value
-    ? options.filter((option) => contains(option[1], search.value.trim()))
-    : options;
+
+  const searchTag = last(search.value.split(" ")) ?? "";
+  return options.filter((i) => contains(i[1], searchTag));
 });
 
 const wrapper = computed<AcceptableInputValue[]>({
@@ -66,6 +68,17 @@ function update() {
     tags: searchTags.value.map((i) => i[0]),
   });
 }
+
+const bus = useEventBus(searchRestoreKey);
+const busStop = bus.on((querys) => {
+  search.value = toValue((querys.search as string) ?? "");
+  searchTags.value = toValue((querys.tags as number[]) ?? [])!.map((i) => [
+    i,
+    tags.value.get(i)!,
+  ]);
+});
+
+onUnmounted(busStop);
 </script>
 
 <template>
@@ -73,6 +86,7 @@ function update() {
     v-model:open="open"
     v-model="wrapper as AcceptableValue"
     :reset-search-term-on-blur="false"
+    :reset-search-term-on-select="false"
     :ignore-filter="true"
   >
     <ComboboxAnchor as-child>
@@ -82,7 +96,7 @@ function update() {
         :display-value="(i) => tags.get(parseInt(i as string))!"
       >
         <div class="flex items-center gap-2 w-full">
-          <ComboboxInput v-model="search" as-child>
+          <ComboboxInput v-model="search" as-child @focus="open = true">
             <TagsInputInput
               placeholder="Search..."
               class="min-w-[200px] w-full py-0 px-1 border-none focus-visible:ring-0 h-auto"
@@ -118,7 +132,7 @@ function update() {
                 if (typeof ev.detail.value === 'string') {
                   const id = parseInt(ev.detail.value);
                   searchTags.push([id, tags.get(id)!]);
-                  search = '';
+                  search = search.replace(/[^ ]+$/, '');
                 }
 
                 if (filteredTags.length === 0) {
