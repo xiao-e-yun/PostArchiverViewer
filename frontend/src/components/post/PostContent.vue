@@ -13,8 +13,8 @@ const { post } = inject(postKey)!;
 const marked = new Marked({
   renderer: {
     link({ href, text }) {
-      const redictHref = `/api/redict?url=${encodeURIComponent(href)}`;
-      return `<a href="${redictHref}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+      const redirectHref = `/api/redirect?url=${encodeURIComponent(href)}`;
+      return `<a href="${redirectHref}" target="_blank" rel="noopener noreferrer">${text}</a>`;
     },
   },
 });
