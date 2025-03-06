@@ -10,7 +10,7 @@ use std::{
 use axum::{
     extract::{Query, State},
     http::StatusCode,
-    response::IntoResponse,
+    response::{IntoResponse, Redirect},
     routing::get,
     Json, Router,
 };
@@ -114,6 +114,7 @@ pub fn get_api_router(config: &Config) -> Router {
         .route("/post", get(get_post_api))
         .route("/tags", get(get_tags_api))
         .route("/info", get(get_info_api))
+        .route("/redirect", get(get_redirect_api))
         .fallback(StatusCode::NOT_FOUND)
         .with_state(state)
 }
@@ -322,6 +323,31 @@ async fn get_info_api(State(state): State<AppState>) -> Result<APIResponse<Value
             "files":count_files,
         }),
     })
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RedirectQuery {
+    url: String,
+}
+
+async fn get_redirect_api(
+    Query(query): Query<RedirectQuery>,
+    State(state): State<AppState>,
+) -> Result<Redirect, StatusCode> {
+    let url = query.url;
+
+    let conn = state.conn();
+    let mut stmt = conn
+        .prepare_cached("SELECT id FROM posts WHERE source = ?")
+        .unwrap();
+    let id: Option<u32> = stmt.query_row([&url], |row| row.get(0)).ok();
+
+    let url = match id {
+        Some(id) => format!("/post/{}", id),
+        None => url,
+    };
+
+    Ok(Redirect::permanent(&url))
 }
 
 pub fn generate_pagination(limit: Option<u32>, page: Option<u32>) -> String {

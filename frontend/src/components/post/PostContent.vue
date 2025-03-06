@@ -2,13 +2,22 @@
 import { computed, inject } from "vue";
 import { postKey } from "./utils";
 import type { FileMetaJson } from "@api/FileMetaJson";
-import { marked } from "marked";
+import { Marked } from "marked";
 import PostFile from "./PostFile.vue";
 import { useLazyLoad } from "@/lazyload";
 import { throttle } from "lodash";
 import { Skeleton } from "../ui/skeleton";
 
 const { post } = inject(postKey)!;
+
+const marked = new Marked({
+  renderer: {
+    link({ href, text }) {
+      const redictHref = `/api/redict?url=${encodeURIComponent(href)}`;
+      return `<a href="${redictHref}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+    },
+  },
+});
 
 const contents = computed(() => {
   const $post = post.value;
@@ -18,7 +27,7 @@ const contents = computed(() => {
   const contents: (string | FileMetaJson)[] = [];
   for (const c of $post.content) {
     if (typeof c === "string") {
-      const markedContent = marked(c);
+      const markedContent = marked.parse(c);
       textList.push(markedContent);
     } else {
       if (textList.length) contents.push(textList.join(""));
