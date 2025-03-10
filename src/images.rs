@@ -7,6 +7,7 @@ use axum::{
     Router,
 };
 use axum_response_cache::CacheLayer;
+use cached::TimedSizedCache;
 use fast_image_resize::{
     images::Image, FilterType, IntoImageView, ResizeAlg, ResizeOptions, Resizer,
 };
@@ -25,11 +26,19 @@ pub fn get_images_router(config: &Config) -> Router {
         return Router::new().fallback(|| async { StatusCode::FORBIDDEN });
     }
 
-    let cache = CacheLayer::with_lifespan(24 * 60 * 60);
-    Router::new()
+    let mut router = Router::new()
         .fallback(provide_images)
-        .with_state(config.clone())
-        .layer(cache)
+        .with_state(config.clone());
+
+    let size = config.resize.cache_size;
+    if size != 0 {
+        let cache =
+            TimedSizedCache::with_size_and_lifespan_and_refresh(size, 30 * 24 * 60 * 60, true);
+        let cache = CacheLayer::with(cache);
+        router = router.layer(cache);
+    }
+
+    router
 }
 
 async fn provide_images(

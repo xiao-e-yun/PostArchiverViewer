@@ -32,6 +32,12 @@ pub struct FutureConfig {
 
 #[derive(Debug, Clone, Deserialize, Parser)]
 pub struct ResizeConfig {
+
+    /// the maximum cache size by number of images 
+    /// 0 to disable
+    #[clap(long = "resize-cache-size", default_value = "200")]
+    pub cache_size: usize,
+
     /// `lanczos3`  
     /// `gaussian`  
     /// `catmull-rom`  
