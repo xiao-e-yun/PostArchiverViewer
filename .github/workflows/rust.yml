@@ -96,12 +96,12 @@ jobs:
           token: ${{ secrets.GH_TOKEN }}
 
       # build full
-      - uses: taiki-e/upload-rust-binary-action@v1
-        with:
-          bin: post-archiver-viewer
-          archive: $bin-${{ matrix.os }}-full
-          features: full
-          target: ${{ matrix.target }}
-          tar: unix
-          zip: windows
-          token: ${{ secrets.GH_TOKEN }}
+      # - uses: taiki-e/upload-rust-binary-action@v1
+      #   with:
+      #     bin: post-archiver-viewer
+      #     archive: $bin-${{ matrix.os }}-full
+      #     features: full
+      #     target: ${{ matrix.target }}
+      #     tar: unix
+      #     zip: windows
+      #     token: ${{ secrets.GH_TOKEN }}
