@@ -20,6 +20,17 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
+  scrollBehavior(_, __, savedPosition) {
+    if (savedPosition) {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve(savedPosition)
+        }, 50)
+      })
+    } else {
+      return { top: 0 }
+    }
+  }
 });
 
 createApp(App).use(router).mount("#app");
