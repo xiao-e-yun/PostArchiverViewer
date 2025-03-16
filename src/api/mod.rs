@@ -183,7 +183,7 @@ async fn get_author_api(
 
     match data {
         Some(data) => Ok(APIResponse { data }),
-        None => return Err(StatusCode::NOT_FOUND),
+        None => Err(StatusCode::NOT_FOUND),
     }
 }
 
@@ -236,7 +236,7 @@ async fn get_posts_api(
             match cache.get(&key) {
                 Some(total) => *total,
                 None => {
-                    let sql = format!("SELECT count() FROM posts WHERE author = ?");
+                    let sql = "SELECT count() FROM posts WHERE author = ?".to_string();
                     let total: u32 = tx
                         .query_row(&sql, [query.author], |row| row.get(0))
                         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -277,7 +277,7 @@ async fn get_post_api(
 
     match data {
         Some(data) => Ok(APIResponse { data }),
-        None => return Err(StatusCode::NOT_FOUND),
+        None => Err(StatusCode::NOT_FOUND),
     }
 }
 

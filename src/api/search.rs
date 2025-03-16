@@ -200,14 +200,14 @@ fn generate_search_sql(
 
 fn generate_search_total_sql(full_text_search: bool, search: &str, tags: &str) -> String {
     if search.is_empty() {
-        return format!(
+        format!(
             "
         SELECT count()
         FROM posts p
         {}
         ",
             tags
-        );
+        )
     } else if full_text_search {
         format!(
             "
@@ -267,8 +267,8 @@ fn generate_search(full_text_search: bool, search: &Option<String>) -> String {
     }
 }
 
-fn generate_tags(tags: &Vec<u32>) -> Vec<String> {
-    if tags.len() == 0 {
+fn generate_tags(tags: &[u32]) -> Vec<String> {
+    if tags.is_empty() {
         vec![]
     } else {
         tags.iter().map(|x| x.to_string()).collect::<Vec<String>>()

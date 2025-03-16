@@ -35,8 +35,7 @@ impl AuthorJson {
         let mut stmt = tx.prepare_cached("SELECT * FROM authors WHERE id = ?")?;
 
         stmt.query_row([id], |row| Author::from_row(state, row))
-            .optional()?
-            .and_then(|post| Some(Self::resolve(state, tx, post)))
+            .optional()?.map(|post| Self::resolve(state, tx, post))
             .transpose()
     }
 

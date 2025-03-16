@@ -53,7 +53,7 @@ async fn provide_images(
         return Err(StatusCode::BAD_REQUEST);
     };
 
-    let path = root.join(&path);
+    let path = root.join(path);
 
     if !path.exists() {
         return Err(StatusCode::NOT_FOUND);
