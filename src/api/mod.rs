@@ -88,12 +88,6 @@ pub fn get_api_router(config: &Config) -> Router {
 
     let conn = connect_database(path.as_path());
 
-    // Create futures table
-    conn.execute_batch("
-    CREATE TABLE IF NOT EXISTS _post_archiver_viewer (future TEXT PRIMARY KEY, value INTEGER DEFAULT 0, extra TEXT DEFAULT '{}');
-    INSERT OR IGNORE INTO _post_archiver_viewer (future) VALUES ('search-full-text');
-    ").unwrap();
-
     #[cfg(feature = "full-text-search")]
     let full_text_search = search::sync_search_api(&config, &conn);
 

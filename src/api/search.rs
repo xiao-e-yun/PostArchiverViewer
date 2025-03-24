@@ -19,11 +19,10 @@ use super::{
 pub fn sync_search_api(config: &Config, conn: &rusqlite::Connection) -> bool {
     let old_status = conn
         .query_row(
-            "SELECT value FROM _post_archiver_viewer WHERE future = 'search-full-text'",
+            "SELECT value FROM features WHERE name = 'PostArchiverViewer:SearchFullText'",
             [],
             |row| row.get::<_, bool>(0),
-        )
-        .unwrap();
+        ).unwrap_or(true);
 
     let status = config.futures.full_text_search.unwrap_or(old_status);
     let changed = old_status != status;
@@ -40,7 +39,7 @@ pub fn sync_search_api(config: &Config, conn: &rusqlite::Connection) -> bool {
             conn.execute_batch(
                         "
                         BEGIN;
-                        INSERT OR REPLACE INTO _post_archiver_viewer (future, value) VALUES ('search-full-text', 1);
+                        INSERT OR REPLACE INTO features (name, value) VALUES ('PostArchiverViewer:SearchFullText', 1);
                         CREATE VIRTUAL TABLE _posts_fts USING fts5(title, content, content=posts, content_rowid=id, tokenize = 'simple');
                         COMMIT;
                     "
@@ -51,7 +50,7 @@ pub fn sync_search_api(config: &Config, conn: &rusqlite::Connection) -> bool {
             conn.execute_batch(
                     "
                     BEGIN;
-                    INSERT OR REPLACE INTO _post_archiver_viewer (future, value) VALUES ('search-full-text', 0);
+                    INSERT OR REPLACE INTO features (name, value) VALUES ('PostArchiverViewer:SearchFullText', 0);
                     DROP TABLE _posts_fts;
                     COMMIT;
                 ",
