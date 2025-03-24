@@ -22,7 +22,7 @@ pub fn sync_search_api(config: &Config, conn: &rusqlite::Connection) -> bool {
             "SELECT value FROM features WHERE name = 'PostArchiverViewer:SearchFullText'",
             [],
             |row| row.get::<_, bool>(0),
-        ).unwrap_or(true);
+        ).unwrap_or(false);
 
     let status = config.futures.full_text_search.unwrap_or(old_status);
     let changed = old_status != status;
