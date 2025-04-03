@@ -33,7 +33,11 @@ const postsPrePageSelectValue = computed({
 const router = useRouter();
 function updatePageIndex(page: number) {
   const query = { ...router.currentRoute.value.query };
-  if (page !== 1) query.page = page.toString();
+  if (page !== 1) {
+    query.page = page.toString();
+  } else {
+    delete query.page;
+  }
   router.push({ query });
 
   pageIndex.value = page;
