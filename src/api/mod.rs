@@ -35,16 +35,6 @@ pub struct AppState {
 }
 
 impl AppState {
-    fn full_text_search(&self) -> bool {
-        #[cfg(feature = "full-text-search")]
-        let value = self.full_text_search;
-        #[cfg(not(feature = "full-text-search"))]
-        let value = false;
-        value
-    }
-}
-
-impl AppState {
     pub fn conn(&self) -> std::sync::MutexGuard<Connection> {
         self.conn.lock().unwrap()
     }
@@ -69,6 +59,13 @@ impl AppState {
             Some(url) => url.to_string(),
             None => url,
         }
+    }
+    fn full_text_search(&self) -> bool {
+        #[cfg(feature = "full-text-search")]
+        let value = self.full_text_search;
+        #[cfg(not(feature = "full-text-search"))]
+        let value = false;
+        value
     }
 }
 
