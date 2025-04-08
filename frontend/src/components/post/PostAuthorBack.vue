@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ChevronLeft } from "lucide-vue-next";
 import { Skeleton } from "../ui/skeleton";
-import type { AuthorJson } from "@api/AuthorJson";
+import type { Author } from "@api/Author";
 
 defineProps<{
-  author: AuthorJson | undefined;
+  author: Author | undefined;
 }>();
 </script>
 

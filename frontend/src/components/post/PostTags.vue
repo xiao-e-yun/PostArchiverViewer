@@ -50,8 +50,8 @@ const tags = computed(() => post.value?.tags);
       <Skeleton class="rounded-full w-16" />
       <Skeleton class="rounded-full w-10" />
     </template>
-    <Badge v-for="tag in tags" v-else :key="tag[0]" variant="secondary">
-      {{ tag[1] }}
+    <Badge v-for="tag in tags" v-else :key="tag.id" variant="secondary">
+      {{ tag.name }}
     </Badge>
   </div>
 </template>
