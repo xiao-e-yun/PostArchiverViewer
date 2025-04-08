@@ -15,6 +15,7 @@ import { RouterLink } from "vue-router";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLazyLoad } from "@/lazyload";
 import { useTemplateRef, watch } from "vue";
+import { getFileMetaPath } from "@/utils";
 
 const { data: authors, isFetching } =
   useFetch("/api/authors").json<AuthorsAPI>();
@@ -66,7 +67,7 @@ watch(authorsEl, (el) => el && useLazyLoad().update());
         </div>
         <Image
           v-if="author.thumb"
-          :src="author.thumb.url"
+          :src="getFileMetaPath(author.thumb)"
           format="webp"
           class="absolute inset-0 object-cover max-h-full w-full rounded-lg"
         />

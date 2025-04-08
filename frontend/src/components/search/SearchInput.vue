@@ -16,7 +16,6 @@ import {
   TagsInputItemDelete,
   TagsInputItemText,
 } from "@/components/ui/tags-input";
-import type { TagJson } from "@api/TagJson";
 import { useEventBus, useFetch } from "@vueuse/core";
 import {
   useFilter,
@@ -35,47 +34,55 @@ const emit = defineEmits<{
 }>();
 
 const { data: rawTags } = useFetch("/api/tags").json<TagsAPI>();
-const tags = computed(() => new Map(rawTags.value));
+const tags = computed(
+  () =>
+    new Map(
+      rawTags.value &&
+        (Object.entries(rawTags.value).map((v) => v.reverse()) as [
+          string,
+          number,
+        ][]),
+    ),
+);
 
 const open = ref(false);
 const search = ref<string>("");
-const searchTags = ref<TagJson[]>([]);
+const searchTags = ref<string[]>([]);
 
 const { contains } = useFilter({ sensitivity: "base" });
 const filteredTags = computed(() => {
-  const tags = rawTags.value;
-  if (!tags) return [];
-  const options = tags?.filter((i) =>
-    searchTags.value.every((j) => j[0] !== i[0]),
+  if (!tags.value) return [];
+  const options = Array.from(tags.value.keys()).filter((i) =>
+    searchTags.value.every((j) => j !== i),
   );
 
   const searchTag = last(search.value.split(" ")) ?? "";
-  return options.filter((i) => contains(i[1], searchTag));
+  return options.filter((i) => contains(i, searchTag));
 });
 
 const wrapper = computed<AcceptableInputValue[]>({
-  get: () => searchTags.value.map((i) => i[0].toString()),
-  set: (value) =>
-    (searchTags.value = value.map((i) => {
-      const id = parseInt(i as string);
-      return [id, tags.value.get(id)!];
-    })),
+  get: () => searchTags.value,
+  set: (value) => (searchTags.value = value as string[]),
 });
 
 function update() {
   emit("search", {
     search: search.value,
-    tags: searchTags.value.map((i) => i[0]),
+    tags: searchTags.value.map((i) => tags.value.get(i)),
   });
 }
 
 const bus = useEventBus(searchRestoreKey);
 const busStop = bus.on((querys) => {
+  const tagNames = new Map(
+    rawTags.value &&
+      Object.entries(rawTags.value).map(([k, v]) => [parseInt(k), v]),
+  );
+
   search.value = toValue((querys.search as string) ?? "");
-  searchTags.value = toValue((querys.tags as number[]) ?? [])!.map((i) => [
-    i,
-    tags.value.get(i)!,
-  ]);
+  searchTags.value = toValue((querys.tags as number[]) ?? [])!
+    .map((i) => tagNames.get(i))
+    .filter((v) => v !== undefined);
 });
 
 onUnmounted(busStop);
@@ -90,11 +97,7 @@ onUnmounted(busStop);
     :ignore-filter="true"
   >
     <ComboboxAnchor as-child>
-      <TagsInput
-        v-model="wrapper"
-        class="px-2 gap-2 w-full"
-        :display-value="(i) => tags.get(parseInt(i as string))!"
-      >
+      <TagsInput v-model="wrapper" class="px-2 gap-2 w-full">
         <div class="flex items-center gap-2 w-full">
           <ComboboxInput v-model="search" as-child @focus="open = true">
             <TagsInputInput
@@ -109,11 +112,7 @@ onUnmounted(busStop);
         </div>
 
         <div class="flex gap-2 flex-wrap items-center w-full min-h-6">
-          <TagsInputItem
-            v-for="item in searchTags"
-            :key="item[0]"
-            :value="item[0].toString()"
-          >
+          <TagsInputItem v-for="item in searchTags" :key="item" :value="item">
             <TagsInputItemText />
             <TagsInputItemDelete />
           </TagsInputItem>
@@ -125,13 +124,13 @@ onUnmounted(busStop);
         <ComboboxGroup>
           <ComboboxItem
             v-for="tag in filteredTags"
-            :key="tag[0]"
-            :value="tag[0].toString()"
+            :key="tag"
+            :value="tag"
             @select.prevent="
               (ev) => {
                 if (typeof ev.detail.value === 'string') {
-                  const id = parseInt(ev.detail.value);
-                  searchTags.push([id, tags.get(id)!]);
+                  const tag = ev.detail.value;
+                  searchTags.push(tag);
                   search = search.replace(/[^ ]+$/, '');
                 }
 
@@ -141,7 +140,7 @@ onUnmounted(busStop);
               }
             "
           >
-            {{ tag[1] }}
+            {{ tag }}
           </ComboboxItem>
         </ComboboxGroup>
       </ComboboxList>

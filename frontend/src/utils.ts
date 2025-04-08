@@ -1,4 +1,17 @@
 import { toValue, type MaybeRefOrGetter } from "vue";
+import type { FileMeta } from "@api/FileMeta";
+import { usePublicConfig } from "./api";
+
+export function getFileMetaPath(fileMeta: FileMeta) {
+  const config = usePublicConfig();
+  const url = fileMeta.mime.startsWith("image/")
+    ? (config.images_url ?? "/images")
+    : (config.resource_url ?? "/resource");
+  return (
+    url.replace(/\/$/, "") +
+    `/${fileMeta.author}/${fileMeta.post}/${fileMeta.filename}`
+  );
+}
 
 export function getUrl(url: string | URL): URL {
   return new URL(url, location.origin);

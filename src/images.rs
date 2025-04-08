@@ -21,7 +21,7 @@ use tracing::info;
 use crate::config::Config;
 
 pub fn get_images_router(config: &Config) -> Router {
-    if config.images_url.is_some() {
+    if config.public.images_url.is_some() {
         info!("Images URL is set, disabling images router");
         return Router::new().fallback(|| async { StatusCode::FORBIDDEN });
     }

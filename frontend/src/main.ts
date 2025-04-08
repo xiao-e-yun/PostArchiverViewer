@@ -8,6 +8,7 @@ import Author from "./pages/Author.vue";
 import Post from "./pages/Post.vue";
 import About from "./pages/About.vue";
 import Search from "./pages/Search.vue";
+import { setPublicConfig } from "./api";
 
 const routes = [
   { path: "/", component: Home },
@@ -24,13 +25,14 @@ const router = createRouter({
     if (savedPosition) {
       return new Promise((resolve) => {
         setTimeout(() => {
-          resolve(savedPosition)
-        }, 50)
-      })
+          resolve(savedPosition);
+        }, 50);
+      });
     } else {
-      return { top: 0 }
+      return { top: 0 };
     }
-  }
+  },
 });
 
+await setPublicConfig();
 createApp(App).use(router).mount("#app");

@@ -6,7 +6,7 @@ use crate::config::Config;
 
 pub fn get_resource_router(config: &Config) -> Router {
     let router = Router::new();
-    if config.resource_url.is_some() {
+    if config.public.resource_url.is_some() {
         info!("Resource URL is set, disabling resource router");
         return router.fallback(|| async { StatusCode::FORBIDDEN });
     }

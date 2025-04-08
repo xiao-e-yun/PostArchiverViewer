@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, inject } from "vue";
 import { postKey } from "./utils";
-import type { FileMetaJson } from "@api/FileMetaJson";
+import type { FileMeta } from "@api/FileMeta";
 import { Marked } from "marked";
 import PostFile from "./PostFile.vue";
 import { useLazyLoad } from "@/lazyload";
@@ -24,7 +24,7 @@ const contents = computed(() => {
   if (!$post) return [];
 
   let textList = [];
-  const contents: (string | FileMetaJson)[] = [];
+  const contents: (string | FileMeta)[] = [];
   for (const c of $post.content) {
     if (typeof c === "string") {
       const markedContent = marked.parse(c);
@@ -40,7 +40,7 @@ const contents = computed(() => {
   return contents;
 });
 
-const isHtml = (content: string | FileMetaJson) => typeof content === "string";
+const isHtml = (content: string | FileMeta) => typeof content === "string";
 
 const lazyload = useLazyLoad();
 const update = throttle(() => lazyload.update(), 50, {

@@ -1823,13 +1823,14 @@ dependencies = [
 
 [[package]]
 name = "post-archiver"
-version = "0.2.5"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6d5e1234113bd269092145ca8393a6cd0cf44047146118f7fead6757d3bdc42"
+checksum = "2e63ba5ec6af1a194c21248fac186542ba4105c9dfdcb6141700b35f5e7fea48"
 dependencies = [
  "chrono",
  "rusqlite",
  "serde",
+ "serde_json",
  "ts-rs",
 ]
 

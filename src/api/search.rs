@@ -1,4 +1,4 @@
-use axum::{extract::State, http::StatusCode};
+use axum::{extract::State, http::StatusCode, Json};
 use axum_extra::extract::Query;
 use post_archiver::Post;
 use rusqlite::params;
@@ -12,17 +12,15 @@ use tracing::info;
 use super::{
     generate_pagination,
     utils::{FromRow, PostMiniJson},
-    APIResponse, AppState, AuthorPostsJson,
+    AppState, AuthorPostsJson,
 };
 
 #[cfg(feature = "full-text-search")]
-pub fn sync_search_api(config: &Config, conn: &rusqlite::Connection) -> bool {
-    let old_status = conn
-        .query_row(
-            "SELECT value FROM features WHERE name = 'PostArchiverViewer:SearchFullText'",
-            [],
-            |row| row.get::<_, bool>(0),
-        ).unwrap_or(false);
+use post_archiver::manager::PostArchiverManager;
+
+#[cfg(feature = "full-text-search")]
+pub fn sync_search_api(config: &Config, manager: &mut PostArchiverManager) -> bool {
+    let old_status = manager.get_feature("PostArchiverViewer:SearchFullText") != 0;
 
     let status = config.futures.full_text_search.unwrap_or(old_status);
     let changed = old_status != status;
@@ -34,42 +32,32 @@ pub fn sync_search_api(config: &Config, conn: &rusqlite::Connection) -> bool {
     );
 
     if changed {
+        let manager = manager.transaction().unwrap();
+        manager.set_feature("PostArchiverViewer:SearchFullText", status as i64);
+
+        let conn = manager.conn();
         if status {
             info!("creating search table");
             conn.execute_batch(
-                        "
-                        BEGIN;
-                        INSERT OR REPLACE INTO features (name, value) VALUES ('PostArchiverViewer:SearchFullText', 1);
-                        CREATE VIRTUAL TABLE _posts_fts USING fts5(title, content, content=posts, content_rowid=id, tokenize = 'simple');
-                        COMMIT;
-                    "
+                        "CREATE VIRTUAL TABLE _posts_fts USING fts5(title, content, content=posts, content_rowid=id, tokenize = 'simple');"
                     )
                     .unwrap();
         } else {
             info!("delete search table");
-            conn.execute_batch(
-                    "
-                    BEGIN;
-                    INSERT OR REPLACE INTO features (name, value) VALUES ('PostArchiverViewer:SearchFullText', 0);
-                    DROP TABLE _posts_fts;
-                    COMMIT;
-                ",
-                )
-                .unwrap();
+            conn.execute_batch("DROP TABLE _posts_fts;").unwrap();
         }
 
         info!("cleanup database");
         conn.execute_batch("VACUUM;").unwrap();
+        manager.commit().unwrap();
     }
 
     if status {
         info!("rebuilt full-text search");
-        conn.execute_batch(
-            "
-                INSERT INTO _posts_fts(_posts_fts) VALUES('rebuild');
-                ",
-        )
-        .unwrap();
+        manager
+            .conn()
+            .execute_batch("INSERT INTO _posts_fts(_posts_fts) VALUES('rebuild');")
+            .unwrap();
     }
 
     status
@@ -87,13 +75,11 @@ pub struct SearchQuery {
 pub async fn get_search_api(
     Query(query): Query<SearchQuery>,
     State(state): State<AppState>,
-) -> Result<APIResponse<AuthorPostsJson>, StatusCode> {
+) -> Result<Json<AuthorPostsJson>, StatusCode> {
     let full_text_search = state.full_text_search();
 
-    let mut conn = state.conn();
-    let tx = conn
-        .transaction()
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let manager = state.manager();
+    let conn = manager.conn();
 
     let pagination_sql = generate_pagination(query.limit, query.page);
     let search = generate_search(full_text_search, &query.search);
@@ -108,7 +94,7 @@ pub async fn get_search_api(
         params![]
     };
 
-    let mut stmt = tx
+    let mut stmt = conn
         .prepare(&sql)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
@@ -118,9 +104,9 @@ pub async fn get_search_api(
 
     let mut posts = Vec::new();
     while let Some(row) = rows.next().unwrap() {
-        let post = Post::from_row(&state, row).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        let post = PostMiniJson::resolve(&state, &tx, post)
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        let post = Post::from_row(row).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        let post =
+            PostMiniJson::resolve(&manager, post).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         match post {
             Some(post) => posts.push(post),
             None => continue,
@@ -137,7 +123,7 @@ pub async fn get_search_api(
                 None => {
                     let sql = generate_search_total_sql(full_text_search, &search, &tags_sql);
 
-                    let total: u32 = tx
+                    let total: u32 = conn
                         .query_row(&sql, params, |row| row.get(0))
                         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
                     cache.put(key, total);
@@ -149,7 +135,7 @@ pub async fn get_search_api(
 
     let data = AuthorPostsJson { posts, total };
 
-    Ok(APIResponse { data })
+    Ok(Json(data))
 }
 
 fn generate_search_sql(

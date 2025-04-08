@@ -3,6 +3,7 @@ import type { PostMiniJson } from "@api/PostMiniJson";
 import DynamicImage from "../image/DynamicImage.vue";
 import { Card, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { ImageOffIcon } from "lucide-vue-next";
+import { getFileMetaPath } from "@/utils";
 
 defineProps<{
   post: PostMiniJson;
@@ -17,7 +18,7 @@ defineProps<{
     <RouterLink :to="`/post/${post.id}`">
       <DynamicImage
         v-if="post.thumb"
-        :src="post.thumb.url"
+        :src="getFileMetaPath(post.thumb)"
         :aspect="1 / 1"
         :width="30"
         class="aspect-square w-full object-cover"

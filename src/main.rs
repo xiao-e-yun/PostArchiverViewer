@@ -23,7 +23,7 @@ use tracing::{error, info};
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt::init();
-    
+
     dotenv().ok();
     let config = Config::parse();
 

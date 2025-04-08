@@ -1,17 +1,18 @@
+use std::mem;
+
 use chrono::{DateTime, Utc};
 use post_archiver::{
-    Author, AuthorId, Comment, Content, FileMetaId, Link, Post, PostId, PostTagId, Tag,
+    manager::PostArchiverManager,
+    utils::{author::GetAuthor, file_meta::GetFileMeta, post::GetPost},
+    Author, AuthorId, Comment, Content, FileMeta, FileMetaId, Link, Post, PostId, Tag,
 };
-use rusqlite::{OptionalExtension, Row, Transaction};
+use rusqlite::Row;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
 use tracing::error;
 use ts_rs::TS;
 
-use super::AppState;
-
 pub trait FromRow {
-    fn from_row(state: &AppState, row: &Row) -> Result<Self, rusqlite::Error>
+    fn from_row(row: &Row) -> Result<Self, rusqlite::Error>
     where
         Self: Sized;
 }
@@ -22,32 +23,13 @@ pub struct AuthorJson {
     pub id: AuthorId,
     pub name: String,
     pub links: Vec<Link>,
-    pub thumb: Option<FileMetaJson>,
+    pub thumb: Option<FileMeta>,
     pub updated: DateTime<Utc>,
 }
 
 impl AuthorJson {
-    pub fn from_id(
-        state: &AppState,
-        tx: &Transaction,
-        id: AuthorId,
-    ) -> Result<Option<Self>, rusqlite::Error> {
-        let mut stmt = tx.prepare_cached("SELECT * FROM authors WHERE id = ?")?;
-
-        stmt.query_row([id], |row| Author::from_row(state, row))
-            .optional()?.map(|post| Self::resolve(state, tx, post))
-            .transpose()
-    }
-
-    pub fn resolve(
-        state: &AppState,
-        tx: &Transaction,
-        author: Author,
-    ) -> Result<Self, rusqlite::Error> {
-        let thumb = author
-            .thumb
-            .map(|id| FileMetaJson::resolve(state, tx, id))
-            .transpose()?;
+    pub fn resolve(manager: &PostArchiverManager, author: Author) -> Result<Self, rusqlite::Error> {
+        let thumb = author.thumb.map(|id| id.file_meta(manager)).transpose()?;
 
         Ok(AuthorJson {
             id: author.id,
@@ -60,7 +42,7 @@ impl AuthorJson {
 }
 
 impl FromRow for Author {
-    fn from_row(_state: &AppState, row: &Row) -> Result<Self, rusqlite::Error> {
+    fn from_row(row: &Row) -> Result<Self, rusqlite::Error> {
         let id: AuthorId = row.get(0)?;
         let name: String = row.get(1)?;
         let thumb: Option<FileMetaId> = row.get(3)?;
@@ -86,15 +68,15 @@ impl FromRow for Author {
 #[ts(export)]
 pub struct PostJson {
     pub id: PostId,
-    pub author: AuthorJson,
+    pub author: Author,
     pub source: Option<String>,
     pub title: String,
     pub content: Vec<ContentJson>,
-    pub thumb: Option<FileMetaJson>,
+    pub thumb: Option<FileMeta>,
     pub comments: Vec<Comment>,
     pub updated: DateTime<Utc>,
     pub published: DateTime<Utc>,
-    pub tags: Vec<TagJson>,
+    pub tags: Vec<Tag>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -102,50 +84,31 @@ pub struct PostJson {
 #[ts(export)]
 pub enum ContentJson {
     Text(String),
-    File(FileMetaJson),
+    File(FileMeta),
 }
 
 impl PostJson {
-    pub fn from_id(
-        state: &AppState,
-        tx: &Transaction,
-        id: PostId,
-    ) -> Result<Option<Self>, rusqlite::Error> {
-        let mut stmt = tx.prepare_cached("SELECT * FROM posts WHERE id = ?")?;
-
-        stmt.query_row([id], |row| Post::from_row(state, row))
-            .optional()?
-            .and_then(|post| Self::resolve(state, tx, post).transpose())
-            .transpose()
-    }
-
     pub fn resolve(
-        state: &AppState,
-        tx: &Transaction,
-        post: Post,
+        manager: &PostArchiverManager,
+        mut post: Post,
     ) -> Result<Option<Self>, rusqlite::Error> {
-        let author = match AuthorJson::from_id(state, tx, post.author)? {
-            Some(author) => author,
-            None => return Ok(None),
-        };
-
-        let content = post
-            .content
+        let author = post.author.author(manager)?;
+        let content = mem::take(&mut post.content)
             .into_iter()
             .map(|content| {
                 Ok(match content {
-                    Content::Text(text) => ContentJson::Text(text),
-                    Content::File(id) => ContentJson::File(FileMetaJson::resolve(state, tx, id)?),
+                    Content::Text(text) => ContentJson::Text(text.clone()),
+                    Content::File(id) => ContentJson::File(id.file_meta(manager)?),
                 })
             })
             .collect::<Result<Vec<ContentJson>, rusqlite::Error>>()?;
 
         let thumb = post
             .thumb
-            .map(|thumb| FileMetaJson::resolve(state, tx, thumb))
+            .map(|thumb| thumb.file_meta(manager))
             .transpose()?;
 
-        let tags = TagJson::from_post(state, tx, post.id)?;
+        let tags = post.post_tags(manager)?;
 
         Ok(Some(PostJson {
             id: post.id,
@@ -166,26 +129,22 @@ impl PostJson {
 #[ts(export)]
 pub struct PostMiniJson {
     pub id: PostId,
-    pub author: AuthorJson,
+    pub author: Author,
     pub title: String,
-    pub thumb: Option<FileMetaJson>,
+    pub thumb: Option<FileMeta>,
     pub updated: DateTime<Utc>,
 }
 
 impl PostMiniJson {
     pub fn resolve(
-        state: &AppState,
-        tx: &Transaction,
+        manager: &PostArchiverManager,
         post: Post,
     ) -> Result<Option<Self>, rusqlite::Error> {
-        let author = match AuthorJson::from_id(state, tx, post.author)? {
-            Some(author) => author,
-            None => return Ok(None),
-        };
+        let author = post.author.author(manager)?;
 
         let thumb = post
             .thumb
-            .map(|thumb| FileMetaJson::resolve(state, tx, thumb))
+            .map(|thumb| thumb.file_meta(manager))
             .transpose()?;
 
         Ok(Some(PostMiniJson {
@@ -199,7 +158,7 @@ impl PostMiniJson {
 }
 
 impl FromRow for Post {
-    fn from_row(_state: &AppState, row: &Row) -> Result<Self, rusqlite::Error>
+    fn from_row(row: &Row) -> Result<Self, rusqlite::Error>
     where
         Self: Sized,
     {
@@ -239,132 +198,17 @@ impl FromRow for Post {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct FileMetaJson {
-    pub id: FileMetaId,
-    pub url: String,
-    pub mime: String,
-    #[ts(type = "Record<string,any>")]
-    pub extra: Value,
-}
+pub fn list_tags(manager: &PostArchiverManager) -> Result<Vec<Tag>, rusqlite::Error> {
+    let mut stmt = manager.conn().prepare_cached("SELECT * FROM tags")?;
+    let mut rows = stmt.query([])?;
 
-impl FileMetaJson {
-    pub fn resolve(
-        state: &AppState,
-        tx: &Transaction,
-        id: FileMetaId,
-    ) -> Result<Self, rusqlite::Error> {
-        let mut stmt = tx.prepare_cached("SELECT * FROM file_metas WHERE id = ?")?;
-
-        match stmt
-            .query_row([id], |row| FileMetaJson::from_row(state, row))
-            .optional()?
-        {
-            Some(data) => Ok(data),
-            // return
-            None => {
-                let id = FileMetaId(0);
-                let url = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1em' height='1em' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='currentColor' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M3 7v4a1 1 0 0 0 1 1h3m0-5v10m3-9v8a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-2a1 1 0 0 0-1 1m7-1v4a1 1 0 0 0 1 1h3m0-5v10'/%3E%3C/svg%3E".to_string();
-                let mime = "image/svg+xml".to_string();
-                let extra = json!({});
-                Ok(FileMetaJson {
-                    id,
-                    url,
-                    mime,
-                    extra,
-                })
-            }
-        }
-    }
-}
-
-impl FromRow for FileMetaJson {
-    fn from_row(state: &AppState, row: &Row) -> Result<Self, rusqlite::Error> {
-        let id: FileMetaId = row.get(0)?;
-        let filename: String = row.get(1)?;
-        let author: AuthorId = row.get(2)?;
-        let post: PostId = row.get(3)?;
-        let mime: String = row.get(4)?;
-
-        let extra = row.get(5)?;
-        let extra = parse_json(extra)?;
-
-        let url = format!(
-            "{}/{}/{}/{}",
-            state.static_url(&mime),
-            author,
-            post,
-            filename
-        );
-
-        Ok(FileMetaJson {
-            id,
-            url,
-            mime,
-            extra,
-        })
-    }
-}
-
-fn parse_json(json: String) -> Result<Value, rusqlite::Error> {
-    let Ok(json) = serde_json::from_str(&json) else {
-        error!("Failed to parse, {}", json);
-        return Err(rusqlite::Error::UnwindingPanic);
-    };
-
-    Ok(json)
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct TagJson(PostTagId, String);
-
-impl TagJson {
-    pub fn from_post(
-        state: &AppState,
-        tx: &Transaction,
-        post: PostId,
-    ) -> Result<Vec<Self>, rusqlite::Error> {
-        let mut stmt = tx.prepare_cached(
-            "SELECT * FROM tags
-            JOIN post_tags ON post_tags.tag = tags.id
-            WHERE post_tags.post = ?",
-        )?;
-
-        let mut rows = stmt.query([post])?;
-
-        let mut data = Vec::new();
-        while let Some(row) = rows.next()? {
-            let tag = Tag::from_row(state, row)?;
-            data.push(TagJson(tag.id, tag.name));
-        }
-
-        Ok(data)
+    let mut data = Vec::new();
+    while let Some(row) = rows.next()? {
+        data.push(Tag {
+            id: row.get("id")?,
+            name: row.get("name")?,
+        });
     }
 
-    pub fn all(state: &AppState, tx: &Transaction) -> Result<Vec<Self>, rusqlite::Error> {
-        let mut stmt = tx.prepare_cached("SELECT * FROM tags")?;
-        let mut rows = stmt.query([])?;
-
-        let mut data = Vec::new();
-        while let Some(row) = rows.next()? {
-            let tag = Tag::from_row(state, row)?;
-            data.push(TagJson(tag.id, tag.name));
-        }
-
-        Ok(data)
-    }
-}
-
-impl FromRow for Tag {
-    fn from_row(_state: &AppState, row: &Row) -> Result<Self, rusqlite::Error>
-    where
-        Self: Sized,
-    {
-        let id: PostTagId = row.get(0)?;
-        let name: String = row.get(1)?;
-
-        Ok(Tag { id, name })
-    }
+    Ok(data)
 }

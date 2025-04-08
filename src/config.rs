@@ -1,26 +1,36 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 #[derive(Debug, Clone, Deserialize, Parser)]
 pub struct Config {
     #[clap(env = "ARCHIVER_PATH", default_value = "archiver")]
     pub path: PathBuf,
-    /// Example: https://static.example.com/archiver
-    #[clap(long)]
-    pub resource_url: Option<String>,
-    /// Example: https://images.example.com/archiver
-    #[clap(long)]
-    pub images_url: Option<String>,
     #[clap(long, default_value = "3000")]
     pub port: u16,
+
+    #[clap(flatten)]
+    pub public: PublicConfig,
 
     #[clap(flatten)]
     pub futures: FutureConfig,
 
     #[clap(flatten)]
     pub resize: ResizeConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Parser, TS)]
+#[ts(export)]
+pub struct PublicConfig {
+    /// Example: https://static.example.com/archiver
+    #[clap(long)]
+    pub resource_url: Option<String>,
+
+    /// Example: https://images.example.com/archiver
+    #[clap(long)]
+    pub images_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Parser)]
@@ -32,8 +42,7 @@ pub struct FutureConfig {
 
 #[derive(Debug, Clone, Deserialize, Parser)]
 pub struct ResizeConfig {
-
-    /// the maximum cache size by number of images 
+    /// the maximum cache size by number of images
     /// 0 to disable
     #[clap(long = "resize-cache-size", default_value = "200")]
     pub cache_size: usize,

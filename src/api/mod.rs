@@ -2,6 +2,7 @@ pub mod search;
 pub mod utils;
 
 use std::{
+    collections::HashMap,
     num::NonZero,
     path::Path,
     sync::{Arc, Mutex},
@@ -10,24 +11,27 @@ use std::{
 use axum::{
     extract::{Query, State},
     http::StatusCode,
-    response::{IntoResponse, Redirect},
+    response::Redirect,
     routing::get,
     Json, Router,
 };
 use lru::LruCache;
-use post_archiver::{Author, AuthorId, Post, PostId};
-use rusqlite::Connection;
+use post_archiver::{
+    manager::PostArchiverManager,
+    utils::{author::GetAuthor, post::GetPost},
+    Author, AuthorId, Post, PostId, PostTagId,
+};
 use search::get_search_api;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use ts_rs::TS;
-use utils::{AuthorJson, FromRow, PostJson, PostMiniJson, TagJson};
+use utils::{list_tags, AuthorJson, FromRow, PostJson, PostMiniJson};
 
-use crate::config::Config;
+use crate::config::{Config, PublicConfig};
 
 #[derive(Clone)]
 pub struct AppState {
-    conn: Arc<Mutex<Connection>>,
+    manager: Arc<Mutex<PostArchiverManager>>,
     cache: Arc<Mutex<LruCache<Vec<u8>, u32>>>,
     config: Config,
     #[cfg(feature = "full-text-search")]
@@ -35,30 +39,8 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn conn(&self) -> std::sync::MutexGuard<Connection> {
-        self.conn.lock().unwrap()
-    }
-    pub fn static_url(&self, mime: &str) -> String {
-        let resource_url = self
-            .config
-            .resource_url
-            .clone()
-            .unwrap_or("/resource".to_string());
-        let images_url = self
-            .config
-            .images_url
-            .clone()
-            .unwrap_or("/images".to_string());
-
-        let url = match mime.starts_with("image/") {
-            true => images_url,
-            false => resource_url,
-        };
-
-        match url.strip_suffix('/') {
-            Some(url) => url.to_string(),
-            None => url,
-        }
+    pub fn manager(&self) -> std::sync::MutexGuard<PostArchiverManager> {
+        self.manager.lock().unwrap()
     }
     fn full_text_search(&self) -> bool {
         #[cfg(feature = "full-text-search")]
@@ -69,30 +51,20 @@ impl AppState {
     }
 }
 
-#[derive(Serialize)]
-pub struct APIResponse<T> {
-    data: T,
-}
-
-impl<T: Serialize> IntoResponse for APIResponse<T> {
-    fn into_response(self) -> axum::response::Response {
-        Json(self.data).into_response()
-    }
-}
-
 pub fn get_api_router(config: &Config) -> Router {
     let path = config.path.clone();
 
-    let conn = connect_database(path.as_path());
+    #[allow(unused_mut)]
+    let mut manager = connect_database(path.as_path());
 
     #[cfg(feature = "full-text-search")]
-    let full_text_search = search::sync_search_api(&config, &conn);
+    let full_text_search = search::sync_search_api(&config, &mut manager);
 
-    let conn = Arc::new(Mutex::new(conn));
+    let manager = Arc::new(Mutex::new(manager));
     let state = AppState {
         cache: Arc::new(Mutex::new(LruCache::new(NonZero::new(20).unwrap()))),
         config: config.clone(),
-        conn,
+        manager,
         #[cfg(feature = "full-text-search")]
         full_text_search,
     };
@@ -106,11 +78,12 @@ pub fn get_api_router(config: &Config) -> Router {
         .route("/tags", get(get_tags_api))
         .route("/info", get(get_info_api))
         .route("/redirect", get(get_redirect_api))
+        .route("/config.json", get(get_config_api))
         .fallback(StatusCode::NOT_FOUND)
         .with_state(state)
 }
 
-pub fn connect_database(path: &Path) -> Connection {
+pub fn connect_database(path: &Path) -> PostArchiverManager {
     #[cfg(feature = "full-text-search")]
     let dir = {
         let dir = tempfile::tempdir().unwrap();
@@ -119,23 +92,21 @@ pub fn connect_database(path: &Path) -> Connection {
         dir
     };
 
-    let conn = Connection::open(path.join("post-archiver.db")).unwrap();
+    let manager = PostArchiverManager::open(path).unwrap().unwrap();
 
     #[cfg(feature = "full-text-search")]
-    libsimple::set_dict(&conn, &dir).unwrap();
+    libsimple::set_dict(&manager.conn(), &dir).unwrap();
 
-    conn
+    manager
 }
 
 async fn get_authors_api(
     State(state): State<AppState>,
-) -> Result<APIResponse<Vec<AuthorJson>>, StatusCode> {
-    let mut conn = state.conn();
-    let tx = conn
-        .transaction()
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+) -> Result<Json<Vec<AuthorJson>>, StatusCode> {
+    let manager = state.manager();
+    let conn = manager.conn();
 
-    let mut stmt = tx
+    let mut stmt = conn
         .prepare_cached("SELECT * FROM authors ORDER BY updated DESC")
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
@@ -145,14 +116,13 @@ async fn get_authors_api(
 
     let mut data = Vec::new();
     while let Some(row) = rows.next().unwrap() {
+        let author = Author::from_row(row).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         let author =
-            Author::from_row(&state, row).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        let author = AuthorJson::resolve(&state, &tx, author)
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            AuthorJson::resolve(&manager, author).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         data.push(author);
     }
 
-    Ok(APIResponse { data })
+    Ok(Json(data))
 }
 
 #[derive(Debug, Deserialize)]
@@ -163,19 +133,20 @@ pub struct AuthorQuery {
 async fn get_author_api(
     Query(query): Query<AuthorQuery>,
     State(state): State<AppState>,
-) -> Result<APIResponse<AuthorJson>, StatusCode> {
-    let mut conn = state.conn();
-    let tx = conn
-        .transaction()
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+) -> Result<Json<AuthorJson>, StatusCode> {
+    let manager = state.manager();
 
-    let data = AuthorJson::from_id(&state, &tx, AuthorId(query.author))
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let author = AuthorId(query.author)
+        .author(&manager)
+        .map_err(|e| match e {
+            rusqlite::Error::QueryReturnedNoRows => StatusCode::NOT_FOUND,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        })?;
 
-    match data {
-        Some(data) => Ok(APIResponse { data }),
-        None => Err(StatusCode::NOT_FOUND),
-    }
+    let data =
+        AuthorJson::resolve(&manager, author).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(data))
 }
 
 #[derive(Debug, Deserialize)]
@@ -188,11 +159,9 @@ pub struct PostsQuery {
 async fn get_posts_api(
     Query(query): Query<PostsQuery>,
     State(state): State<AppState>,
-) -> Result<APIResponse<AuthorPostsJson>, StatusCode> {
-    let mut conn = state.conn();
-    let tx = conn
-        .transaction()
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+) -> Result<Json<AuthorPostsJson>, StatusCode> {
+    let manager = state.manager();
+    let conn = manager.conn();
 
     let pagination_sql = generate_pagination(query.limit, query.page);
 
@@ -200,7 +169,7 @@ async fn get_posts_api(
         "SELECT * FROM posts WHERE author = ? ORDER BY updated DESC {}",
         pagination_sql
     );
-    let mut stmt = tx
+    let mut stmt = conn
         .prepare_cached(&sql)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
@@ -210,9 +179,9 @@ async fn get_posts_api(
 
     let mut posts = Vec::new();
     while let Some(row) = rows.next().unwrap() {
-        let post = Post::from_row(&state, row).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        let post = PostMiniJson::resolve(&state, &tx, post)
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        let post = Post::from_row(row).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        let post =
+            PostMiniJson::resolve(&manager, post).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         match post {
             Some(post) => posts.push(post),
             None => continue,
@@ -228,7 +197,7 @@ async fn get_posts_api(
                 Some(total) => *total,
                 None => {
                     let sql = "SELECT count() FROM posts WHERE author = ?".to_string();
-                    let total: u32 = tx
+                    let total: u32 = conn
                         .query_row(&sql, [query.author], |row| row.get(0))
                         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
                     cache.put(key, total);
@@ -240,7 +209,7 @@ async fn get_posts_api(
 
     let data = AuthorPostsJson { posts, total };
 
-    Ok(APIResponse { data })
+    Ok(Json(data))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -258,29 +227,31 @@ pub struct PostQuery {
 async fn get_post_api(
     Query(query): Query<PostQuery>,
     State(state): State<AppState>,
-) -> Result<APIResponse<PostJson>, StatusCode> {
-    let mut conn = state.conn();
-    let tx = conn
-        .transaction()
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+) -> Result<Json<PostJson>, StatusCode> {
+    let manager = state.manager();
+
     let id = PostId(query.post);
-    let data = PostJson::from_id(&state, &tx, id).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let data = PostJson::resolve(
+        &manager,
+        id.post(&manager)
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+    )
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     match data {
-        Some(data) => Ok(APIResponse { data }),
+        Some(data) => Ok(Json(data)),
         None => Err(StatusCode::NOT_FOUND),
     }
 }
 
 async fn get_tags_api(
     State(state): State<AppState>,
-) -> Result<APIResponse<Vec<TagJson>>, StatusCode> {
-    let mut conn = state.conn();
-    let tx = conn
-        .transaction()
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let data = TagJson::all(&state, &tx).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    Ok(APIResponse { data })
+) -> Result<Json<HashMap<PostTagId, String>>, StatusCode> {
+    let manager = state.manager();
+
+    let data = list_tags(&manager).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let data = HashMap::from_iter(data.into_iter().map(|t| (t.id, t.name)));
+    Ok(Json(data))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -291,29 +262,25 @@ pub struct InfoJson {
     files: u32,
 }
 
-async fn get_info_api(State(state): State<AppState>) -> Result<APIResponse<Value>, StatusCode> {
-    let mut conn = state.conn();
-    let tx = conn
-        .transaction()
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+async fn get_info_api(State(state): State<AppState>) -> Result<Json<Value>, StatusCode> {
+    let manager = state.manager();
+    let conn = manager.conn();
 
-    let count_authors: u32 = tx
+    let count_authors: u32 = conn
         .query_row("SELECT COUNT() FROM authors", [], |row| row.get(0))
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let count_posts: u32 = tx
+    let count_posts: u32 = conn
         .query_row("SELECT COUNT() FROM posts", [], |row| row.get(0))
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let count_files: u32 = tx
+    let count_files: u32 = conn
         .query_row("SELECT COUNT() FROM file_metas", [], |row| row.get(0))
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Ok(APIResponse {
-        data: json!({
-            "authors":count_authors,
-            "posts":count_posts,
-            "files":count_files,
-        }),
-    })
+    Ok(Json(json!({
+        "authors":count_authors,
+        "posts":count_posts,
+        "files":count_files,
+    })))
 }
 
 #[derive(Debug, Deserialize)]
@@ -327,7 +294,9 @@ async fn get_redirect_api(
 ) -> Result<Redirect, StatusCode> {
     let url = query.url;
 
-    let conn = state.conn();
+    let manager = state.manager();
+    let conn = manager.conn();
+
     let mut stmt = conn
         .prepare_cached("SELECT id FROM posts WHERE source = ?")
         .unwrap();
@@ -339,6 +308,10 @@ async fn get_redirect_api(
     };
 
     Ok(Redirect::permanent(&url))
+}
+
+pub async fn get_config_api(State(state): State<AppState>) -> Json<PublicConfig> {
+    Json(state.config.public.clone())
 }
 
 pub fn generate_pagination(limit: Option<u32>, page: Option<u32>) -> String {

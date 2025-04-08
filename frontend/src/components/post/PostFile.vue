@@ -1,17 +1,18 @@
 <script setup lang="ts">
-import type { FileMetaJson } from "@api/FileMetaJson";
+import type { FileMeta } from "@api/FileMeta";
 import { Card } from "../ui/card";
 import DialogImage from "../DialogImage.vue";
 import DialogTrigger from "../ui/dialog/DialogTrigger.vue";
 import DynamicImage from "../image/DynamicImage.vue";
 import { Badge } from "../ui/badge";
 import { ArrowDown, File } from "lucide-vue-next";
+import { getFileMetaPath } from "@/utils";
 
 defineProps<{
-  file: FileMetaJson;
+  file: FileMeta;
 }>();
 
-function getStyleByFileExtra(extra: FileMetaJson["extra"]) {
+function getStyleByFileExtra(extra: FileMeta["extra"]) {
   if (!hasExtra(extra)) return {};
   const width = parseInt(extra.width as string);
   const height = parseInt(extra.height as string);
@@ -20,12 +21,12 @@ function getStyleByFileExtra(extra: FileMetaJson["extra"]) {
   };
 }
 
-function hasExtra(extra: FileMetaJson["extra"]) {
+function hasExtra(extra: FileMeta["extra"]) {
   return extra && (extra.width || extra.height);
 }
 
-function getExt(file: FileMetaJson) {
-  return file.url.slice(file.url.indexOf(".", file.url.lastIndexOf("/")) + 1);
+function getExt(file: FileMeta) {
+  return file.filename.slice(file.filename.indexOf("."));
 }
 
 //TODO: implement comment
@@ -45,13 +46,13 @@ function getExt(file: FileMetaJson) {
     <DialogImage
       v-if="file.mime.startsWith('image')"
       :aspect="getStyleByFileExtra(file.extra).aspectRatio"
-      :src="file.url"
+      :src="getFileMetaPath(file)"
       class="p-0"
     >
       <DialogTrigger as="div">
         <DynamicImage
           :width="100"
-          :src="file.url"
+          :src="getFileMetaPath(file)"
           :aspect="getStyleByFileExtra(file.extra).aspectRatio"
           class="object-cover max-h-[80vh] w-full h-full absolute inset-0"
         />
@@ -60,12 +61,15 @@ function getExt(file: FileMetaJson) {
 
     <video
       v-else-if="file.mime.startsWith('video')"
-      :src="file.url"
+      :src="getFileMetaPath(file)"
       class="lazy"
       controls
     />
 
-    <audio v-else-if="file.mime.startsWith('audio')" :src="file.url" />
+    <audio
+      v-else-if="file.mime.startsWith('audio')"
+      :src="getFileMetaPath(file)"
+    />
 
     <div v-else class="sm:w-72 flex flex-col items-center p-4 gap-2 relative">
       <div class="w-full h-full relative">
@@ -86,10 +90,14 @@ function getExt(file: FileMetaJson) {
           </span>
         </div>
       </div>
-      <a target="_blank" :href="file.url" rel="noopener noreferrer">
+      <a
+        target="_blank"
+        :href="getFileMetaPath(file)"
+        rel="noopener noreferrer"
+      >
         <Badge class="py-1 px-2">
           <ArrowDown class="h-4" />
-          {{ file.url.slice(file.url.lastIndexOf("/") + 1) }}
+          {{ file.filename }}
         </Badge>
       </a>
     </div>
