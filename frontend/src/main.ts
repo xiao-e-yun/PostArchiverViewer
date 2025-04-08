@@ -10,29 +10,31 @@ import About from "./pages/About.vue";
 import Search from "./pages/Search.vue";
 import { setPublicConfig } from "./api";
 
-const routes = [
-  { path: "/", component: Home },
-  { path: "/author/:author", component: Author },
-  { path: "/post/:post", component: Post },
-  { path: "/about", component: About },
-  { path: "/search", component: Search },
-];
+(async () => {
+  const routes = [
+    { path: "/", component: Home },
+    { path: "/author/:author", component: Author },
+    { path: "/post/:post", component: Post },
+    { path: "/about", component: About },
+    { path: "/search", component: Search },
+  ];
 
-const router = createRouter({
-  history: createWebHistory(),
-  routes,
-  scrollBehavior(_, __, savedPosition) {
-    if (savedPosition) {
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          resolve(savedPosition);
-        }, 50);
-      });
-    } else {
-      return { top: 0 };
-    }
-  },
-});
+  const router = createRouter({
+    history: createWebHistory(),
+    routes,
+    scrollBehavior(_, __, savedPosition) {
+      if (savedPosition) {
+        return new Promise((resolve) => {
+          setTimeout(() => {
+            resolve(savedPosition);
+          }, 50);
+        });
+      } else {
+        return { top: 0 };
+      }
+    },
+  });
 
-await setPublicConfig();
-createApp(App).use(router).mount("#app");
+  await setPublicConfig();
+  createApp(App).use(router).mount("#app");
+})();
