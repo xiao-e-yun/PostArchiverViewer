@@ -14,7 +14,6 @@ const props = withDefaults(
   {
     format: "webp",
     width: 50,
-    aspect: 16 / 9,
     dpr: undefined,
   },
 );
@@ -26,12 +25,16 @@ const src = computed(() => {
   const dpr = props.dpr
     ? parseInt(props.dpr.toString())
     : window.devicePixelRatio;
+
   if (dpr !== 1) url.searchParams.set("dpr", dpr.toString());
   if (props.format) url.searchParams.set("output", props.format);
 
-  const hasQuery = url.search.length > 0;
+  url.searchParams.set("w", "__WIDTH__");
+  if (props.aspect) {
+    url.searchParams.set("h", "__HEIGHT__");
+  }
 
-  return url.toString() + (hasQuery ? "&" : "?") + "w=%width%&h=%height%";
+  return url.toString();
 });
 </script>
 

@@ -70,8 +70,8 @@ export default {
   name: "VueResponsiveImage",
   props: {
     // the base with which to generate image urls, with placeholders for width and height
-    // %width% and %height%
-    // example: http://via.placeholder.com/%width%x%height%
+    // __WIDTH__ and __HEIGHT__
+    // example: http://via.placeholder.com/__WIDTH__x__HEIGHT__
     imageUrl: {
       type: String,
       required: true,
@@ -143,9 +143,9 @@ export default {
       defaultClass: "vue-responsive-image",
       errorClass: "vue-responsive-image-error",
       // width placeholder
-      widthPlaceholder: "%width%",
+      widthPlaceholder: "__WIDTH__",
       // height placeholder
-      heightPlaceholder: "%height%",
+      heightPlaceholder: "__HEIGHT__",
       // the base sizes on which to calculate final image width
       baseSizes: {
         desktop: [1920, 1600, 1440, 1366, 1024, 768],

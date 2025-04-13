@@ -54,7 +54,8 @@ function getExt(file: FileMeta) {
           :width="100"
           :src="getFileMetaPath(file)"
           :aspect="getStyleByFileExtra(file.extra).aspectRatio"
-          class="object-cover max-h-[80vh] w-full h-full absolute inset-0"
+          class="object-cover max-h-[80vh] w-full h-full inset-0"
+          :style="{ position: hasExtra(file.extra) ? 'absolute' : 'relative' }"
         />
       </DialogTrigger>
     </DialogImage>
