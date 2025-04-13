@@ -72,28 +72,44 @@ const update = throttle(() => lazyload.update(), 50, {
 
 <style module>
 /* For rendering markdown content */
+.content hr {
+  margin: 1em 0;
+}
+
 .content h1 {
-  font-size: 1.5rem;
+  font-size: 2rem;
   font-weight: 600;
-  margin: 1rem 0;
+  margin: 1.25rem 0;
 }
 
 .content h2 {
-  font-size: 1.25rem;
-  font-weight: 500;
-  margin: 1rem 0;
+  font-size: 1.75rem;
+  font-weight: 550;
+  margin: 1.2rem 0;
 }
 
 .content h3 {
-  font-size: 1rem;
+  font-size: 1.5rem;
   font-weight: 500;
-  margin: 1rem 0;
+  margin: 1.125rem 0;
 }
 
 .content h4 {
-  font-size: 0.875rem;
+  font-size: 1.25rem;
   font-weight: 500;
+  margin: 1.1rem 0;
+}
+
+.content h5 {
+  font-size: 1rem;
+  font-weight: 450;
   margin: 1rem 0;
+}
+
+.content h6 {
+  font-size: 0.875rem;
+  font-weight: 400;
+  margin: 0.75rem 0;
 }
 
 .content a {
@@ -102,5 +118,69 @@ const update = throttle(() => lazyload.update(), 50, {
 
 .content a:hover {
   text-decoration: underline;
+}
+
+.content ul {
+  padding: 0.5rem 1.5rem;
+}
+
+.content ul {
+  list-style-type: disc;
+}
+
+.content ul ul {
+  list-style-type: circle;
+}
+
+.content ul ul ul {
+  list-style-type: square;
+}
+
+.content ol {
+  padding: 0.5rem 2.5rem;
+  list-style-type: decimal;
+}
+
+.content blockquote {
+  border-left: hsl(var(--muted)) 0.25rem solid;
+  padding: 0.5rem 0.8rem;
+  margin: 0.5rem 0;
+}
+
+.content code {
+  background: hsl(var(--muted));
+  padding: 0 0.3rem;
+  border-radius: 0.3rem;
+}
+
+.content pre {
+  background: hsl(var(--muted));
+  border-radius: 0.3rem;
+  padding: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+.content table {
+  margin: 1.5rem auto;
+  border-radius: var(--radius);
+}
+
+.content thead {
+  border-bottom: hsl(var(--muted)) 0.15rem solid;
+}
+
+.content tbody tr:nth-child(even) {
+  background: hsl(var(--secondary));
+}
+
+.content th,
+.content td {
+  padding: 0.2rem 1.2rem;
+}
+
+.content img:not(.vue-responsive-image) {
+  max-width: 35%;
+  display: inline-block;
+  object-fit: cover;
 }
 </style>

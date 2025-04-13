@@ -70,6 +70,7 @@ function getExt(file: FileMeta) {
     <audio
       v-else-if="file.mime.startsWith('audio')"
       :src="getFileMetaPath(file)"
+      controls
     />
 
     <div v-else class="sm:w-72 flex flex-col items-center p-4 gap-2 relative">

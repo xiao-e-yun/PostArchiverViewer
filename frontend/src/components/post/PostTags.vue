@@ -11,7 +11,7 @@ const tags = computed(() => post.value?.tags);
 
 <template>
   <!-- first -->
-  <div class="flex gap-2 my-4">
+  <div class="flex gap-2 my-4 flex-wrap">
     <RouterLink v-if="author" :to="`/author/${author.id}`">
       <Badge title="Author">{{ author.name }}</Badge>
     </RouterLink>
@@ -21,7 +21,7 @@ const tags = computed(() => post.value?.tags);
     </a>
   </div>
   <!-- secondary -->
-  <div class="flex gap-2 my-4">
+  <div class="flex gap-2 my-4 flex-wrap">
     <template v-if="!post">
       <Skeleton
         v-for="i in 2"
