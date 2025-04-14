@@ -47,7 +47,7 @@ async fn provide_images(
     uri: Uri,
 ) -> Result<(HeaderMap, Bytes), StatusCode> {
     let root = &config.path;
-    let path = path_clean::clean(uri.path());
+    let path = path_clean::clean(urlencoding::decode(uri.path()).unwrap().as_ref());
 
     let Ok(path) = path.strip_prefix("/") else {
         return Err(StatusCode::BAD_REQUEST);

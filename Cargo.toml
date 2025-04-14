@@ -46,3 +46,4 @@ axum-extra = { version = "0.10.0", features = ["query"] }
 libsimple =  { version = "0.3", optional = true }
 tempfile =  { version = "3.17.1", optional = true }
 cached = "0.54.0"
+urlencoding = "2.1.3"
