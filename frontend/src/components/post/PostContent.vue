@@ -178,7 +178,7 @@ const update = throttle(() => lazyload.update(), 50, {
   padding: 0.2rem 1.2rem;
 }
 
-.content img:not(.vue-responsive-image) {
+.content img:not(:global(.vue-responsive-image)) {
   max-width: 35%;
   display: inline-block;
   object-fit: cover;
