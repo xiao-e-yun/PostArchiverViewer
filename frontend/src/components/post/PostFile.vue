@@ -63,7 +63,7 @@ function getExt(file: FileMeta) {
     <video
       v-else-if="file.mime.startsWith('video')"
       :src="getFileMetaPath(file)"
-      class="lazy"
+      class="lazy max-h-[80vh]"
       controls
     />
 
