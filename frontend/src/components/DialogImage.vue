@@ -6,6 +6,7 @@ import {
   DialogContent,
   type DialogContentEmits,
   type DialogContentProps,
+  DialogDescription,
   DialogOverlay,
   DialogPortal,
   useForwardPropsEmits,
@@ -19,6 +20,7 @@ import {
 } from "vue";
 import { Dialog, DialogTitle } from "./ui/dialog";
 import { useThrottleFn, useToggle } from "@vueuse/core";
+import { onBeforeRouteLeave } from "vue-router";
 
 const props = defineProps<
   DialogContentProps & {
@@ -102,10 +104,18 @@ const style = computed(() => ({
 
 const displayScale = computed(() => (scale.value * 100).toFixed());
 const [tooltipScale, toggleTooltipScale] = useToggle(true);
+
+const opened = ref(false);
+
+onBeforeRouteLeave(() => {
+  const prevent = opened.value;
+  opened.value = false;
+  return !prevent;
+});
 </script>
 
 <template>
-  <Dialog>
+  <Dialog v-model:open="opened">
     <slot />
     <DialogPortal>
       <DialogOverlay
@@ -123,21 +133,17 @@ const [tooltipScale, toggleTooltipScale] = useToggle(true);
               props.class,
             )
           "
-          @pointer-down-outside="
+          @interact-outside="
             (event) => {
-              const originalEvent = event.detail.originalEvent;
-              const target = originalEvent.target as HTMLElement;
-              if (
-                originalEvent.offsetX > target.clientWidth ||
-                originalEvent.offsetY > target.clientHeight
-              ) {
-                event.preventDefault();
-              }
+              const isSideButton =
+                (event.detail.originalEvent as PointerEvent).button > 2;
+              if (isSideButton) event.preventDefault();
             }
           "
         >
           <img :src="src" :style="style" />
           <DialogTitle class="sr-only">{{ src }} of image</DialogTitle>
+          <DialogDescription class="sr-only"></DialogDescription>
           <DialogClose
             class="absolute top-3 right-3 p-0.5 transition-colors rounded-md hover:bg-secondary"
           >
