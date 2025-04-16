@@ -72,6 +72,10 @@ const update = throttle(() => lazyload.update(), 50, {
 
 <style module>
 /* For rendering markdown content */
+.content p + p {
+  margin-top: 1rem;
+}
+
 .content hr {
   margin: 1em 0;
 }
