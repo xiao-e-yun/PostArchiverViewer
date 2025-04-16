@@ -2,7 +2,6 @@
 import type { PostAPI } from "@/api";
 import PostContent from "./PostContent.vue";
 import PostHeader from "./PostHeader.vue";
-import { Separator } from "../ui/separator";
 import { provide, toRef } from "vue";
 import { postKey } from "./utils";
 
@@ -17,6 +16,5 @@ provide(postKey, {
 
 <template>
   <PostHeader />
-  <Separator class="my-4" />
   <PostContent />
 </template>
