@@ -9,7 +9,10 @@ defineProps<{
 </script>
 
 <template>
-  <RouterLink :to="author ? `/author/${author.id}` : `/`" class="flex p-2">
+  <RouterLink
+    :to="author ? `/author/${author.id}` : `/`"
+    class="flex p-2 w-max"
+  >
     <ChevronLeft />
     <Skeleton v-if="!author" class="w-20" />
     <span v-else class="font-bold">{{ author.name }}</span>
