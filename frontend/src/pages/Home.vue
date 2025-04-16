@@ -69,6 +69,7 @@ watch(authorsEl, (el) => el && useLazyLoad().update());
           v-if="author.thumb"
           :src="getFileMetaPath(author.thumb)"
           format="webp"
+          :aspect="16 / 9"
           class="absolute inset-0 object-cover max-h-full w-full rounded-lg"
         />
         <ImageOff
