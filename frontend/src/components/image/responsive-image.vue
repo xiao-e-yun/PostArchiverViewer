@@ -68,6 +68,7 @@ import responsiveImageSizes from "responsive-image-sizes";
 
 export default {
   name: "VueResponsiveImage",
+  inheritAttrs: false,
   props: {
     // the base with which to generate image urls, with placeholders for width and height
     // __WIDTH__ and __HEIGHT__

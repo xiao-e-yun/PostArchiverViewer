@@ -27,7 +27,7 @@ const { post } = inject(postKey)!;
         v-if="post?.thumb"
         :width="10"
         :src="getFileMetaPath(post.thumb)"
-        class="object-cover object-center inset-0 opacity-50 w-full h-full blur-md"
+        class="object-cover object-center inset-0 w-full h-full scale-110 blur-md opacity-0 [&.loaded]:opacity-50 duration-300"
         @vue:mounted="() => useLazyLoad().update()"
       />
     </div>
