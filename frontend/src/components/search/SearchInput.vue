@@ -55,7 +55,11 @@ until(rawTags)
   .not.toBeNull()
   .then((mapper) => {
     const queryTags = route.query.tags;
-    const tags = Array.isArray(queryTags) ? queryTags : [queryTags];
+    const tags = Array.isArray(queryTags)
+      ? queryTags
+      : queryTags !== undefined
+        ? [queryTags]
+        : [];
     searchTags.value = tags.map(
       (tag) => mapper[tag as unknown as number] ?? mapper[0],
     );
