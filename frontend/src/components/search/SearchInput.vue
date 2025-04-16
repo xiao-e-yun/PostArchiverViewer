@@ -16,7 +16,7 @@ import {
   TagsInputItemDelete,
   TagsInputItemText,
 } from "@/components/ui/tags-input";
-import { useEventBus, useFetch } from "@vueuse/core";
+import { until, useEventBus, useFetch } from "@vueuse/core";
 import {
   useFilter,
   type AcceptableInputValue,
@@ -28,6 +28,9 @@ import { SearchIcon } from "lucide-vue-next";
 import type { UrlParams } from "@/utils";
 import { last } from "lodash";
 import { searchRestoreKey } from "./utils";
+import { useRoute } from "vue-router";
+
+const route = useRoute();
 
 const emit = defineEmits<{
   search: [UrlParams];
@@ -46,8 +49,17 @@ const tags = computed(
 );
 
 const open = ref(false);
-const search = ref<string>("");
+const search = ref<string>(route.query.search as string);
 const searchTags = ref<string[]>([]);
+until(rawTags)
+  .not.toBeNull()
+  .then((mapper) => {
+    const queryTags = route.query.tags;
+    const tags = Array.isArray(queryTags) ? queryTags : [queryTags];
+    searchTags.value = tags.map(
+      (tag) => mapper[tag as unknown as number] ?? mapper[0],
+    );
+  });
 
 const { contains } = useFilter({ sensitivity: "base" });
 const filteredTags = computed(() => {
@@ -102,7 +114,7 @@ onUnmounted(busStop);
           <ComboboxInput v-model="search" as-child @focus="open = true">
             <TagsInputInput
               placeholder="Search..."
-              class="min-w-[200px] w-full py-0 px-1 border-none focus-visible:ring-0 h-auto"
+              class="min-w-[200px] w-full py-0 px-1 border-none focus-visible:ring-0 h-auto shadow-none"
               @keydown.enter.prevent
             />
           </ComboboxInput>
