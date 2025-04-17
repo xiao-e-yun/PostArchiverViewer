@@ -7,6 +7,7 @@ import PostFile from "./PostFile.vue";
 import { useLazyLoad } from "@/lazyload";
 import { throttle } from "lodash";
 import { Skeleton } from "../ui/skeleton";
+import PostComments from "./PostComments.vue";
 
 const { post } = inject(postKey)!;
 
@@ -50,23 +51,24 @@ const update = throttle(() => lazyload.update(), 50, {
 </script>
 
 <template>
-  <div
-    class="flex flex-col gap-4 p-4 lg:w-[1024px] mx-auto md:border-x md:px-6"
-    :class="$style.content"
-  >
-    <template v-if="!post">
-      <Skeleton style="width: 89%; height: 1em" />
-      <Skeleton style="width: 26%; height: 1em" />
-      <Skeleton style="width: 61%; height: 1em" />
-      <Skeleton style="width: 21%; height: 1em" />
-      <Skeleton style="aspect-ratio: 0.8; height: 80vh; margin: auto" />
-    </template>
-    <template v-for="content in contents" v-else :key="content">
-      <!-- eslint-disable vue/no-v-html -->
-      <div v-if="isHtml(content)" v-html="content" />
-      <!--eslint-enable-->
-      <PostFile v-else :file="content" @vue:mounted="update" />
-    </template>
+  <div class="p-4 lg:w-[1024px] mx-auto md:border-x md:px-6">
+    <div class="flex flex-col gap-4" :class="$style.content">
+      <template v-if="!post">
+        <Skeleton style="width: 89%; height: 1em" />
+        <Skeleton style="width: 26%; height: 1em" />
+        <Skeleton style="width: 61%; height: 1em" />
+        <Skeleton style="width: 21%; height: 1em" />
+        <Skeleton style="aspect-ratio: 0.8; height: 80vh; margin: auto" />
+      </template>
+      <template v-for="content in contents" v-else :key="content">
+        <!-- eslint-disable vue/no-v-html -->
+        <div v-if="isHtml(content)" v-html="content" />
+        <!--eslint-enable-->
+        <PostFile v-else :file="content" @vue:mounted="update" />
+      </template>
+    </div>
+
+    <PostComments />
   </div>
 </template>
 
