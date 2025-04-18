@@ -16,7 +16,7 @@ jobs:
       - uses: taiki-e/create-gh-release-action@v1
         with:
           # (required) GitHub token for creating GitHub Releases.
-          token: ${{ secrets.GH_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   build-frontend:
     runs-on: ubuntu-latest
@@ -93,7 +93,7 @@ jobs:
           # [possible values: all, unix, windows, none]
           zip: windows
           # (required) GitHub token for uploading assets to GitHub Releases.
-          token: ${{ secrets.GH_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       # build full
       # - uses: taiki-e/upload-rust-binary-action@v1
@@ -104,4 +104,4 @@ jobs:
       #     target: ${{ matrix.target }}
       #     tar: unix
       #     zip: windows
-      #     token: ${{ secrets.GH_TOKEN }}
+      #     token: ${{ secrets.GITHUB_TOKEN }}
