@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use utils::{list_tags, AuthorJson, FromRow, PostJson, PostMiniJson};
 
-use crate::config::{Config, PublicConfig};
+use crate::{config::{Config, PublicConfig}, VERSION};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -271,7 +271,6 @@ pub struct SummaryAuthorJson {
     files: u32,
 }
 
-const VERSION: &str = env!("CARGO_PKG_VERSION");
 async fn get_summary_api(State(state): State<AppState>) -> Result<Json<SummaryJson>, StatusCode> {
     let manager = state.manager();
     let conn = manager.conn();
