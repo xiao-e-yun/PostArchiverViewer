@@ -34,7 +34,7 @@ const comments = computed(() => {
       :key="index"
       class="flex px-2"
     >
-      <div v-for="index in level" :key="index" class="mx-2 border-l" />
+      <div v-for="indent in level" :key="indent" class="mx-2 border-l" />
       <div
         class="flex flex-col"
         :style="{ paddingTop: level == 0 ? '2rem' : '1rem' }"

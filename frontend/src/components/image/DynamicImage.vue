@@ -7,13 +7,14 @@ const props = withDefaults(
   defineProps<{
     src: string;
     width?: number | string;
-    aspect?: number | string;
+    aspect?: number | string | null;
     dpr?: number | string;
     format?: "webp" | "jpeg" | "png" | null;
   }>(),
   {
     format: "webp",
     width: 50,
+    aspect: null,
     dpr: undefined,
   },
 );

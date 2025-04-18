@@ -23,7 +23,6 @@ use post_archiver::{
 };
 use search::get_search_api;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
 use ts_rs::TS;
 use utils::{list_tags, AuthorJson, FromRow, PostJson, PostMiniJson};
 
@@ -76,7 +75,7 @@ pub fn get_api_router(config: &Config) -> Router {
         .route("/posts", get(get_posts_api))
         .route("/post", get(get_post_api))
         .route("/tags", get(get_tags_api))
-        .route("/info", get(get_info_api))
+        .route("/summary", get(get_summary_api))
         .route("/redirect", get(get_redirect_api))
         .route("/config.json", get(get_config_api))
         .fallback(StatusCode::NOT_FOUND)
@@ -255,32 +254,69 @@ async fn get_tags_api(
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(export)]
-pub struct InfoJson {
-    authors: u32,
+pub struct SummaryJson {
+    version: String,
+    post_archiver_version: String,
+    tags: u32,
+    authors: HashMap<AuthorId, SummaryAuthorJson>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct SummaryAuthorJson {
     posts: u32,
     files: u32,
 }
 
-async fn get_info_api(State(state): State<AppState>) -> Result<Json<Value>, StatusCode> {
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+async fn get_summary_api(State(state): State<AppState>) -> Result<Json<SummaryJson>, StatusCode> {
     let manager = state.manager();
     let conn = manager.conn();
 
-    let count_authors: u32 = conn
-        .query_row("SELECT COUNT() FROM authors", [], |row| row.get(0))
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let count_posts: u32 = conn
-        .query_row("SELECT COUNT() FROM posts", [], |row| row.get(0))
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let count_files: u32 = conn
-        .query_row("SELECT COUNT() FROM file_metas", [], |row| row.get(0))
+    let post_archiver_version: String = conn
+        .query_row("SELECT version FROM post_archiver_meta", [], |row| {
+            row.get(0)
+        })
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Ok(Json(json!({
-        "authors":count_authors,
-        "posts":count_posts,
-        "files":count_files,
-    })))
+    let tags: u32 = conn
+        .query_row("SELECT COUNT() FROM tags", [], |row| row.get(0))
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let mut stmt = conn
+        .prepare_cached("SELECT author, COUNT() FROM posts GROUP BY author")
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let mut count_posts = stmt
+        .query([])
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let mut stmt = conn
+        .prepare_cached("SELECT author, COUNT() FROM file_metas GROUP BY author")
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let mut count_files = stmt.query([])
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let mut authors: HashMap<AuthorId, SummaryAuthorJson> = HashMap::new();
+
+    while let Ok(Some(row)) = count_posts.next() {
+        authors.entry(row.get_unwrap(0)).or_default().posts = row.get_unwrap(1);
+    }
+
+    while let Ok(Some(row)) = count_files.next() {
+        authors.entry(row.get_unwrap(0)).or_default().files = row.get_unwrap(1);
+    }
+
+    Ok(Json(SummaryJson {
+        version: VERSION.to_string(),
+        post_archiver_version,
+        authors,
+        tags,
+    }))
 }
 
 #[derive(Debug, Deserialize)]
