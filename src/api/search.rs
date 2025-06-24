@@ -32,10 +32,10 @@ pub fn sync_search_api(config: &Config, manager: &mut PostArchiverManager) -> bo
     );
 
     if changed {
-        let manager = manager.transaction().unwrap();
-        manager.set_feature("PostArchiverViewer:SearchFullText", status as i64);
+        let transaction = manager.transaction().unwrap();
+        transaction.set_feature("PostArchiverViewer:SearchFullText", status as i64);
 
-        let conn = manager.conn();
+        let conn = transaction.conn();
         if status {
             info!("creating search table");
             conn.execute_batch(
@@ -46,10 +46,10 @@ pub fn sync_search_api(config: &Config, manager: &mut PostArchiverManager) -> bo
             info!("delete search table");
             conn.execute_batch("DROP TABLE _posts_fts;").unwrap();
         }
+        transaction.commit().unwrap();
 
         info!("cleanup database");
-        conn.execute_batch("VACUUM;").unwrap();
-        manager.commit().unwrap();
+        manager.conn().execute_batch("VACUUM;").unwrap();
     }
 
     if status {
