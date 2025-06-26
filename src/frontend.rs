@@ -9,7 +9,7 @@ static INDEX_HTML: &str = "index.html";
 #[folder = "frontend/dist/"]
 struct Assets;
 
-pub fn frontend() -> Router {
+pub fn frontend() -> Router<()> {
     if cfg!(debug_assertions) {
         let proxy: ReverseProxy = ReverseProxy::new("/", "http://localhost:5173");
         info!("Running in debug mode");

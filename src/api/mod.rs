@@ -1,9 +1,10 @@
+pub mod category;
+pub mod post;
 pub mod search;
+pub mod summary;
 pub mod utils;
 
 use std::{
-    collections::HashMap,
-    num::NonZero,
     path::Path,
     sync::{Arc, Mutex},
 };
@@ -15,26 +16,36 @@ use axum::{
     routing::get,
     Json, Router,
 };
-use lru::LruCache;
+use category::CategoryPostsApiRouter;
+use mini_moka::sync::Cache;
+use post::get_post_api;
 use post_archiver::{
-    manager::PostArchiverManager,
-    utils::{author::GetAuthor, post::GetPost},
-    Author, AuthorId, Post, PostId, PostTagId,
+    manager::PostArchiverManager, Author, AuthorId, Collection, CollectionId, Platform, PlatformId,
+    Tag, TagId,
 };
-use search::get_search_api;
-use serde::{Deserialize, Serialize};
-use ts_rs::TS;
-use utils::{list_tags, AuthorJson, FromRow, PostJson, PostMiniJson};
+use search::{get_search_api, SearchQuery};
+use serde::Deserialize;
+use summary::get_summary_api;
 
-use crate::{config::{Config, PublicConfig}, VERSION};
+use crate::config::{Config, PublicConfig};
 
 #[derive(Clone)]
 pub struct AppState {
     manager: Arc<Mutex<PostArchiverManager>>,
-    cache: Arc<Mutex<LruCache<Vec<u8>, u32>>>,
     config: Config,
+    caches: Caches,
     #[cfg(feature = "full-text-search")]
     full_text_search: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct Caches {
+    pub tables: Cache<&'static str, usize>,
+    pub tags: Cache<TagId, usize>,
+    pub authors: Cache<AuthorId, usize>,
+    pub platforms: Cache<PlatformId, usize>,
+    pub collections: Cache<CollectionId, usize>,
+    pub search: Cache<SearchQuery, usize>,
 }
 
 impl AppState {
@@ -50,36 +61,44 @@ impl AppState {
     }
 }
 
-pub fn get_api_router(config: &Config) -> Router {
+pub fn get_api_router(config: &Config) -> Router<()> {
     let path = config.path.clone();
 
     #[allow(unused_mut)]
     let mut manager = connect_database(path.as_path());
 
     #[cfg(feature = "full-text-search")]
-    let full_text_search = search::sync_search_api(&config, &mut manager);
+    let full_text_search = search::sync_search_api(config, &mut manager);
 
     let manager = Arc::new(Mutex::new(manager));
     let state = AppState {
-        cache: Arc::new(Mutex::new(LruCache::new(NonZero::new(20).unwrap()))),
+        caches: Caches {
+            tables: Cache::new(5),
+            platforms: Cache::new(4),
+            tags: Cache::new(8),
+            collections: Cache::new(8),
+            authors: Cache::new(16),
+            search: Cache::new(32),
+        },
         config: config.clone(),
         manager,
         #[cfg(feature = "full-text-search")]
         full_text_search,
     };
 
-    Router::new()
-        .route("/authors", get(get_authors_api))
-        .route("/author", get(get_author_api))
+    let router = Router::new()
+        .route("/post/{id}", get(get_post_api))
         .route("/search", get(get_search_api))
-        .route("/posts", get(get_posts_api))
-        .route("/post", get(get_post_api))
-        .route("/tags", get(get_tags_api))
         .route("/summary", get(get_summary_api))
         .route("/redirect", get(get_redirect_api))
-        .route("/config.json", get(get_config_api))
-        .fallback(StatusCode::NOT_FOUND)
-        .with_state(state)
+        .route("/config.json", get(get_config_api));
+
+    let router = Tag::wrap_category_and_posts_route(router);
+    let router = Author::wrap_category_and_posts_route(router);
+    let router = Platform::wrap_category_and_posts_route(router);
+    let router = Collection::wrap_category_and_posts_route(router);
+
+    router.fallback(StatusCode::NOT_FOUND).with_state(state)
 }
 
 pub fn connect_database(path: &Path) -> PostArchiverManager {
@@ -94,228 +113,9 @@ pub fn connect_database(path: &Path) -> PostArchiverManager {
     let manager = PostArchiverManager::open(path).unwrap().unwrap();
 
     #[cfg(feature = "full-text-search")]
-    libsimple::set_dict(&manager.conn(), &dir).unwrap();
+    libsimple::set_dict(manager.conn(), &dir).unwrap();
 
     manager
-}
-
-async fn get_authors_api(
-    State(state): State<AppState>,
-) -> Result<Json<Vec<AuthorJson>>, StatusCode> {
-    let manager = state.manager();
-    let conn = manager.conn();
-
-    let mut stmt = conn
-        .prepare_cached("SELECT * FROM authors ORDER BY updated DESC")
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    let mut rows = stmt
-        .query([])
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    let mut data = Vec::new();
-    while let Some(row) = rows.next().unwrap() {
-        let author = Author::from_row(row).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        let author =
-            AuthorJson::resolve(&manager, author).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        data.push(author);
-    }
-
-    Ok(Json(data))
-}
-
-#[derive(Debug, Deserialize)]
-pub struct AuthorQuery {
-    author: u32,
-}
-
-async fn get_author_api(
-    Query(query): Query<AuthorQuery>,
-    State(state): State<AppState>,
-) -> Result<Json<AuthorJson>, StatusCode> {
-    let manager = state.manager();
-
-    let author = AuthorId(query.author)
-        .author(&manager)
-        .map_err(|e| match e {
-            rusqlite::Error::QueryReturnedNoRows => StatusCode::NOT_FOUND,
-            _ => StatusCode::INTERNAL_SERVER_ERROR,
-        })?;
-
-    let data =
-        AuthorJson::resolve(&manager, author).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    Ok(Json(data))
-}
-
-#[derive(Debug, Deserialize)]
-pub struct PostsQuery {
-    author: u32,
-    limit: Option<u32>,
-    page: Option<u32>,
-}
-
-async fn get_posts_api(
-    Query(query): Query<PostsQuery>,
-    State(state): State<AppState>,
-) -> Result<Json<AuthorPostsJson>, StatusCode> {
-    let manager = state.manager();
-    let conn = manager.conn();
-
-    let pagination_sql = generate_pagination(query.limit, query.page);
-
-    let sql = format!(
-        "SELECT * FROM posts WHERE author = ? ORDER BY updated DESC {}",
-        pagination_sql
-    );
-    let mut stmt = conn
-        .prepare_cached(&sql)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    let mut rows = stmt
-        .query([query.author])
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    let mut posts = Vec::new();
-    while let Some(row) = rows.next().unwrap() {
-        let post = Post::from_row(row).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        let post =
-            PostMiniJson::resolve(&manager, post).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        match post {
-            Some(post) => posts.push(post),
-            None => continue,
-        }
-    }
-
-    let total = match pagination_sql.as_str() {
-        "" => posts.len() as u32,
-        _ => {
-            let mut cache = state.cache.lock().unwrap();
-            let key = postcard::to_allocvec(&query.author).unwrap();
-            match cache.get(&key) {
-                Some(total) => *total,
-                None => {
-                    let sql = "SELECT count() FROM posts WHERE author = ?".to_string();
-                    let total: u32 = conn
-                        .query_row(&sql, [query.author], |row| row.get(0))
-                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-                    cache.put(key, total);
-                    total
-                }
-            }
-        }
-    };
-
-    let data = AuthorPostsJson { posts, total };
-
-    Ok(Json(data))
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
-pub struct AuthorPostsJson {
-    posts: Vec<PostMiniJson>,
-    total: u32,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct PostQuery {
-    post: u32,
-}
-
-async fn get_post_api(
-    Query(query): Query<PostQuery>,
-    State(state): State<AppState>,
-) -> Result<Json<PostJson>, StatusCode> {
-    let manager = state.manager();
-
-    let id = PostId(query.post);
-    let data = PostJson::resolve(
-        &manager,
-        id.post(&manager)
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
-    )
-    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    match data {
-        Some(data) => Ok(Json(data)),
-        None => Err(StatusCode::NOT_FOUND),
-    }
-}
-
-async fn get_tags_api(
-    State(state): State<AppState>,
-) -> Result<Json<HashMap<PostTagId, String>>, StatusCode> {
-    let manager = state.manager();
-
-    let data = list_tags(&manager).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let data = HashMap::from_iter(data.into_iter().map(|t| (t.id, t.name)));
-    Ok(Json(data))
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub struct SummaryJson {
-    version: String,
-    post_archiver_version: String,
-    tags: u32,
-    authors: HashMap<AuthorId, SummaryAuthorJson>,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub struct SummaryAuthorJson {
-    posts: u32,
-    files: u32,
-}
-
-async fn get_summary_api(State(state): State<AppState>) -> Result<Json<SummaryJson>, StatusCode> {
-    let manager = state.manager();
-    let conn = manager.conn();
-
-    let post_archiver_version: String = conn
-        .query_row("SELECT version FROM post_archiver_meta", [], |row| {
-            row.get(0)
-        })
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    let tags: u32 = conn
-        .query_row("SELECT COUNT() FROM tags", [], |row| row.get(0))
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    let mut stmt = conn
-        .prepare_cached("SELECT author, COUNT() FROM posts GROUP BY author")
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    let mut count_posts = stmt
-        .query([])
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    let mut stmt = conn
-        .prepare_cached("SELECT author, COUNT() FROM file_metas GROUP BY author")
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    let mut count_files = stmt.query([])
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    let mut authors: HashMap<AuthorId, SummaryAuthorJson> = HashMap::new();
-
-    while let Ok(Some(row)) = count_posts.next() {
-        authors.entry(row.get_unwrap(0)).or_default().posts = row.get_unwrap(1);
-    }
-
-    while let Ok(Some(row)) = count_files.next() {
-        authors.entry(row.get_unwrap(0)).or_default().files = row.get_unwrap(1);
-    }
-
-    Ok(Json(SummaryJson {
-        version: VERSION.to_string(),
-        post_archiver_version,
-        authors,
-        tags,
-    }))
 }
 
 #[derive(Debug, Deserialize)]
@@ -347,11 +147,4 @@ async fn get_redirect_api(
 
 pub async fn get_config_api(State(state): State<AppState>) -> Json<PublicConfig> {
     Json(state.config.public.clone())
-}
-
-pub fn generate_pagination(limit: Option<u32>, page: Option<u32>) -> String {
-    match (limit, page) {
-        (Some(limit), Some(page)) => format!("LIMIT {} OFFSET {}", limit, page * limit),
-        _ => "".to_string(),
-    }
 }

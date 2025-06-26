@@ -1,3 +1,5 @@
+#![feature(associated_type_defaults)]
+
 mod api;
 pub mod config;
 pub mod frontend;
@@ -28,7 +30,7 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[tokio::main]
 async fn main() {
-        let timer = UtcTime::new(time::format_description::parse(
+    let timer = UtcTime::new(time::format_description::parse(
         "[year]-[month]-[day] [hour]:[minute]:[second]",
     ).unwrap());
 
@@ -83,7 +85,7 @@ async fn main() {
         port
     );
     if let Ok(addr) = local_ip() {
-        let url = format!("http://{}:{}", addr.to_string(), port);
+        let url = format!("http://{}:{}", addr, port);
         info!(" {} {}", style("Network").green().bold(), url);
 
         let qrcode = QrCode::new(url.clone()).unwrap();

@@ -12,8 +12,8 @@ full-text-search = [
 ]
 
 [dependencies]
-post-archiver = { version = "0.3.3", features = ["utils", "typescript"] }
-axum = "0.8.1"
+post-archiver = { version = "0.4.3", features = ["utils", "typescript"] }
+axum = { version = "0.8.1", features = [ "macros" ] }
 axum-reverse-proxy = "0.5.1"
 mime_guess = "2.0.5"
 rusqlite = { version = "0.32.1", features = ["bundled", "chrono"] }
@@ -39,7 +39,6 @@ fast_image_resize = { version = "5.1.1", features = ["image", "rayon"] }
 axum-response-cache = "0.2.0"
 path-clean = "1.0.1"
 ts-rs = { version = "10.1.0" }
-lru = { version = "0.13.0" }
 dotenv = "0.15.0"
 postcard = { version = "1.1.1", features = ["use-std"] }
 axum-extra = { version = "0.10.0", features = ["query"] }
@@ -51,3 +50,4 @@ local-ip-address = "0.6.3"
 qrcode = { version = "0.14.1", default-features = false }
 console = "0.15.11"
 time = "0.3.41"
+mini-moka = "0.10.3"
