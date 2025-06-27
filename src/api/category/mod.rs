@@ -14,8 +14,8 @@ use axum::{
 use axum_extra::extract::Query;
 use mini_moka::sync::Cache;
 use post_archiver::{manager::PostArchiverManager, FileMetaId};
-use rusqlite::{OptionalExtension, Row, ToSql};
-use serde::Serialize;
+use rusqlite::{params, OptionalExtension, Row, ToSql};
+use serde::{Deserialize, Serialize};
 
 use crate::api::utils::into_thumb_url;
 
@@ -64,16 +64,25 @@ pub trait CategoryApiRouter: Category + Sized + 'static {
     fn list(
         manager: &PostArchiverManager,
         pagination: Pagination,
+        search: String,
     ) -> Result<Vec<WithThumb<Self>>, rusqlite::Error> {
+
+        let (filter, params) = if search.is_empty() {
+            ("", params![])
+        } else {
+            ("WHERE name LIKE concat('%',?,'%')", params![search])
+        };
+
         let mut stmt = manager.conn().prepare_cached(&format!(
-            "SELECT * FROM {} {} {}",
+            "SELECT * FROM {} {} {} {}",
             Self::TABLE_NAME,
+            filter,
             Self::ORDER_BY,
             pagination.to_sql(),
         ))?;
 
         let rows = stmt
-            .query_map([], Self::from_row)?
+            .query_map(params, Self::from_row)?
             .map(|row| row.and_then(|r| r.with_thumb_url(manager)));
 
         rows.collect()
@@ -97,8 +106,9 @@ pub trait CategoryApiRouter: Category + Sized + 'static {
         state: &AppState,
         manager: &PostArchiverManager,
         pagination: Pagination,
+        search: String,
     ) -> Result<CategoryJson<Self>, rusqlite::Error> {
-        let categories = Self::list(manager, pagination)?;
+        let categories = Self::list(manager, pagination, search)?;
         let total = Self::total(state, manager)?;
         Ok(CategoryJson { total, categories })
     }
@@ -206,12 +216,19 @@ pub trait CategoryPostsApiRouter: CategoryApiRouter {
     }
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub struct Filter {
+    #[serde(default)]
+    pub search: String,
+}
+
 async fn list_category_handler<T: CategoryApiRouter>(
+    Query(filter): Query<Filter>,
     Query(pagination): Query<Pagination>,
     State(state): State<AppState>,
 ) -> Result<Json<CategoryJson<T>>, StatusCode> {
     let manager = &state.manager();
-    T::list_and_total(&state, manager, pagination)
+    T::list_and_total(&state, manager, pagination, filter.search)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
         .map(Json::from)
 }
