@@ -1,19 +1,24 @@
 use mini_moka::sync::Cache;
-use post_archiver::{Tag, TagId};
+use post_archiver::{PlatformId, Tag, TagId};
 use rusqlite::Row;
 
+use crate::api::relation::RequireRelations;
+
 use super::{Category, CategoryApiRouter, CategoryPostsApiRouter};
+
+impl RequireRelations for Tag {
+    fn platforms(&self) -> Vec<PlatformId> {
+        self.platform.into_iter().collect()
+    }
+}
 
 impl Category for Tag {
     type Id = TagId;
     const TABLE_NAME: &'static str = "tags";
     const ORDER_BY: &'static str = "ORDER BY id DESC";
+
     fn from_row(row: &Row) -> Result<Self, rusqlite::Error> {
         Tag::from_row(row)
-    }
-
-    fn thumb(&self) -> Option<post_archiver::FileMetaId> {
-        None
     }
 }
 

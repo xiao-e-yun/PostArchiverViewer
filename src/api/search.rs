@@ -3,14 +3,15 @@ use axum_extra::extract::Query;
 use post_archiver::{AuthorId, CollectionId, PlatformId, TagId};
 use rusqlite::{params_from_iter, CachedStatement, Connection};
 use serde::{Deserialize, Serialize};
-use tracing::info;
-use ts_rs::TS;
 
 #[cfg(feature = "full-text-search")]
 use crate::config::Config;
+#[cfg(feature = "full-text-search")]
+use tracing::info;
 
 use super::{
-    utils::{Pagination, PostMiniJson},
+    relation::WithRelation,
+    utils::{ListResponse, Pagination, PostPreview},
     AppState,
 };
 
@@ -65,7 +66,7 @@ pub fn sync_search_api(config: &Config, manager: &mut PostArchiverManager) -> bo
     status
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Default)]
 pub struct SearchQuery {
     #[serde(default)]
     search: String,
@@ -79,18 +80,12 @@ pub struct SearchQuery {
     platforms: Vec<PlatformId>,
 }
 
-#[derive(Debug, Clone, Serialize, TS)]
-pub struct SearchJson {
-    posts: Vec<PostMiniJson>,
-    total: usize,
-}
-
 type SearchContext = (Vec<&'static str>, Vec<&'static str>, Vec<String>);
 pub async fn get_search_api(
     Query(pagination): Query<Pagination>,
     Query(query): Query<SearchQuery>,
     State(state): State<AppState>,
-) -> Result<Json<SearchJson>, StatusCode> {
+) -> Result<Json<WithRelation<ListResponse<PostPreview>>>, StatusCode> {
     let manager = state.manager();
     let conn = manager.conn();
 
@@ -104,19 +99,20 @@ pub async fn get_search_api(
         &query.platforms,
     );
 
-    let mut stmt = prepare_search(&context, conn, pagination)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let mut stmt = prepare_search(&context, conn).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let params = params_from_iter(context.2.iter());
+    let pagination = pagination.params().map(|p| p.to_string());
+    let params = params_from_iter(context.2.iter().chain(pagination.iter()));
 
     let rows = stmt
-        .query_map(params.clone(), PostMiniJson::from_row)
+        .query_map(params.clone(), PostPreview::from_row)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let posts = rows
+    let list = rows
         .collect::<Result<Vec<_>, _>>()
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+    let params = params_from_iter(context.2.iter());
     let total = match state.caches.search.get(&query) {
         Some(cached) => cached,
         None => {
@@ -133,13 +129,14 @@ pub async fn get_search_api(
         }
     };
 
-    Ok(Json(SearchJson { posts, total }))
+    WithRelation::new(&manager, ListResponse { list, total })
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+        .map(Json::from)
 }
 
 fn prepare_search<'a>(
     (joins, filters, _params): &SearchContext,
     connection: &'a Connection,
-    pagination: Pagination,
 ) -> Result<CachedStatement<'a>, rusqlite::Error> {
     let joins = joins.join(" ");
 
@@ -149,11 +146,9 @@ fn prepare_search<'a>(
         format!("WHERE {}", filters.join(" AND "))
     };
 
-    let pagination = pagination.to_sql();
-
     let sql  = format!(
-        "SELECT posts.id id, posts.title title, posts.updated updated, file_metas.filename thumb FROM posts JOIN file_metas ON posts.thumb = file_metas.id {} {} ORDER BY posts.updated DESC {}",
-        joins, filters, pagination
+        "SELECT id, title, updated, thumb FROM posts {} {} ORDER BY posts.updated DESC LIMIT ? OFFSET ?",
+        joins, filters
     );
 
     connection.prepare_cached(&sql)

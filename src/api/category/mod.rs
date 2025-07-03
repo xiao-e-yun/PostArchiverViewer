@@ -3,7 +3,7 @@ pub mod collection;
 pub mod platform;
 pub mod tag;
 
-use std::hash::Hash;
+use std::{fmt::Debug, hash::Hash};
 
 use axum::{
     extract::{Path, State},
@@ -13,45 +13,25 @@ use axum::{
 };
 use axum_extra::extract::Query;
 use mini_moka::sync::Cache;
-use post_archiver::{manager::PostArchiverManager, FileMetaId};
+use post_archiver::{manager::PostArchiverManager};
 use rusqlite::{params, OptionalExtension, Row, ToSql};
 use serde::{Deserialize, Serialize};
-
-use crate::api::utils::into_thumb_url;
+use ts_rs::TS;
 
 use super::{
-    utils::{Pagination, PostMiniJson, WithThumb},
+    relation::{RequireRelations, WithRelation},
+    utils::{ListResponse, Pagination, PostListResponse, PostPreview},
     AppState,
 };
 
-pub trait Category: Serialize + Sized {
-    type Id: From<u32> + ToSql + Copy + Eq + Hash + Sync + Send + 'static;
+pub trait Category: RequireRelations + Serialize + Debug + TS + Sized {
+    type Id: From<u32> + Debug + Serialize + ToSql + Copy + Eq + Hash + Sync + Send + 'static;
     const TABLE_NAME: &'static str;
     const ORDER_BY: &'static str;
     fn from_row(row: &Row) -> Result<Self, rusqlite::Error>;
-    fn thumb(&self) -> Option<FileMetaId>;
-
-    fn with_thumb_url(
-        self,
-        manager: &PostArchiverManager,
-    ) -> Result<WithThumb<Self>, rusqlite::Error> {
-        let Some(thumb) = self.thumb() else {
-            return Ok(WithThumb {
-                category: self,
-                thumb: None,
-            });
-        };
-
-        let thumb = manager.get_file_meta(&thumb)?;
-
-        Ok(WithThumb {
-            category: self,
-            thumb: Some(thumb),
-        })
-    }
 }
 
-pub trait CategoryApiRouter: Category + Sized + 'static {
+pub trait CategoryApiRouter: Category + 'static {
     const ROUTE_NAME: &'static str;
 
     fn wrap_category_route(router: Router<AppState>) -> Router<AppState> {
@@ -65,30 +45,40 @@ pub trait CategoryApiRouter: Category + Sized + 'static {
         manager: &PostArchiverManager,
         pagination: Pagination,
         search: String,
-    ) -> Result<Vec<WithThumb<Self>>, rusqlite::Error> {
-
+    ) -> Result<Vec<Self>, rusqlite::Error> {
+        let [limit, offset] = pagination.params();
         let (filter, params) = if search.is_empty() {
-            ("", params![])
+            ("", params![limit, offset])
         } else {
-            ("WHERE name LIKE concat('%',?,'%')", params![search])
+            ("WHERE name LIKE concat('%',?,'%')", params![search, limit, offset])
         };
 
         let mut stmt = manager.conn().prepare_cached(&format!(
-            "SELECT * FROM {} {} {} {}",
+            "SELECT * FROM {} {} {} LIMIT ? OFFSET ?",
             Self::TABLE_NAME,
             filter,
             Self::ORDER_BY,
-            pagination.to_sql(),
         ))?;
 
-        let rows = stmt
-            .query_map(params, Self::from_row)?
-            .map(|row| row.and_then(|r| r.with_thumb_url(manager)));
+        let list = stmt
+            .query_map(params, Self::from_row)?;
 
-        rows.collect()
+        list.collect()
     }
 
-    fn total(state: &AppState, manager: &PostArchiverManager) -> Result<usize, rusqlite::Error> {
+    fn total(
+        state: &AppState,
+        manager: &PostArchiverManager,
+        search: String,
+    ) -> Result<usize, rusqlite::Error> {
+        if !search.is_empty() {
+            let mut stmt = manager.conn().prepare_cached(&format!(
+                "SELECT COUNT() FROM {} WHERE name LIKE concat('%',?,'%')",
+                Self::TABLE_NAME
+            ))?;
+            return stmt.query_row([search], |row| row.get(0));
+        }
+
         if let Some(total) = state.caches.tables.get(&Self::TABLE_NAME) {
             return Ok(total);
         }
@@ -101,17 +91,6 @@ pub trait CategoryApiRouter: Category + Sized + 'static {
         state.caches.tables.insert(Self::TABLE_NAME, total);
         Ok(total)
     }
-
-    fn list_and_total(
-        state: &AppState,
-        manager: &PostArchiverManager,
-        pagination: Pagination,
-        search: String,
-    ) -> Result<CategoryJson<Self>, rusqlite::Error> {
-        let categories = Self::list(manager, pagination, search)?;
-        let total = Self::total(state, manager)?;
-        Ok(CategoryJson { total, categories })
-    }
 }
 
 pub trait CategoryPostsApiRouter: CategoryApiRouter {
@@ -119,38 +98,33 @@ pub trait CategoryPostsApiRouter: CategoryApiRouter {
     const FILTER: &'static str;
 
     fn wrap_category_and_posts_route(router: Router<AppState>) -> Router<AppState> {
-        Self::wrap_category_route(router).route(
-            &format!("/{}/{{id}}", Self::ROUTE_NAME),
-            get(list_category_posts_handler::<Self>),
-        )
+        Self::wrap_category_route(router)
+            .route(
+                &format!("/{}/{{id}}", Self::ROUTE_NAME),
+                get(get_category_handler::<Self>),
+            )
+            .route(
+                &format!("/{}/{{id}}/posts", Self::ROUTE_NAME),
+                get(list_category_posts_handler::<Self>),
+            )
     }
 
     fn list_posts(
         manager: &PostArchiverManager,
         pagination: Pagination,
         id: Self::Id,
-    ) -> Result<Vec<PostMiniJson>, rusqlite::Error> {
-        let mut stmt = manager
-            .conn()
+    ) -> Result<Vec<PostPreview>, rusqlite::Error> {
+        let mut stmt = manager.conn()
             .prepare_cached(&format!(
-                "SELECT posts.id id, posts.title title, posts.updated updated, file_metas.filename thumb FROM posts JOIN file_metas ON posts.thumb = file_metas.id {} WHERE {} = ? ORDER BY posts.updated DESC {}",
+                "SELECT posts.* FROM posts {} WHERE {} = ? ORDER BY posts.updated DESC LIMIT ? OFFSET ?",
                 Self::JOIN_RELATION,
                 Self::FILTER,
-                pagination.to_sql(),
             ))?;
 
-        let rows = stmt.query_map([id], |row| {
-            let id = row.get("id")?;
-            let filename: Option<String> = row.get("thumb")?;
-            Ok(PostMiniJson {
-                id,
-                title: row.get("title")?,
-                updated: row.get("updated")?,
-                thumb: filename.map(|f| into_thumb_url(id, f)),
-            })
-        })?;
+        let [limit, offset] = pagination.params();
+        let rows = stmt.query_map(params![id, limit, offset], PostPreview::from_row)?;
 
-        rows.collect()
+        rows.collect::<Result<Vec<PostPreview>, _>>()
     }
 
     fn total_post(
@@ -186,33 +160,15 @@ pub trait CategoryPostsApiRouter: CategoryApiRouter {
     fn get(
         manager: &PostArchiverManager,
         id: Self::Id,
-    ) -> Result<Option<WithThumb<Self>>, rusqlite::Error> {
+    ) -> Result<Option<WithRelation<Self>>, rusqlite::Error> {
         let mut stmt = manager
             .conn()
             .prepare_cached(&format!("SELECT * FROM {} WHERE id = ?", Self::TABLE_NAME))?;
 
         stmt.query_row([id], Self::from_row)
             .optional()?
-            .map(|c| c.with_thumb_url(manager))
+            .map(|c| WithRelation::new(manager, c))
             .transpose()
-    }
-
-    fn get_category_and_posts(
-        state: &AppState,
-        manager: &PostArchiverManager,
-        id: Self::Id,
-        pagination: Pagination,
-    ) -> Result<Option<CategoryPostsJson<Self>>, rusqlite::Error> {
-        let Some(category) = Self::get(manager, id)? else {
-            return Ok(None);
-        };
-        let posts = Self::list_posts(manager, pagination, id)?;
-        let total = Self::total_post(state, manager, id)?;
-        Ok(Some(CategoryPostsJson {
-            category,
-            posts,
-            total,
-        }))
     }
 }
 
@@ -226,10 +182,31 @@ async fn list_category_handler<T: CategoryApiRouter>(
     Query(filter): Query<Filter>,
     Query(pagination): Query<Pagination>,
     State(state): State<AppState>,
-) -> Result<Json<CategoryJson<T>>, StatusCode> {
+) -> Result<Json<WithRelation<ListResponse<T>>>, StatusCode> {
     let manager = &state.manager();
-    T::list_and_total(&state, manager, pagination, filter.search)
+    let list = T::list(manager, pagination, filter.search.clone())
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let total =
+        T::total(&state, manager, filter.search).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    WithRelation::new(
+        manager,
+        ListResponse { list, total },
+    )
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+        .map(Json::from)
+}
+
+async fn get_category_handler<T: CategoryPostsApiRouter>(
+    Path(id): Path<u32>,
+    State(state): State<AppState>,
+) -> Result<Json<WithRelation<T>>, StatusCode> {
+    let manager = &state.manager();
+    let id: T::Id = id.into();
+
+    T::get(manager, id)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)
         .map(Json::from)
 }
 
@@ -237,26 +214,23 @@ async fn list_category_posts_handler<T: CategoryPostsApiRouter>(
     Path(id): Path<u32>,
     Query(pagination): Query<Pagination>,
     State(state): State<AppState>,
-) -> Result<Json<CategoryPostsJson<T>>, StatusCode> {
+) -> Result<Json<WithRelation<PostListResponse>>, StatusCode> {
     let manager = &state.manager();
     let id: T::Id = id.into();
 
-    T::get_category_and_posts(&state, manager, id, pagination)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .ok_or(StatusCode::NOT_FOUND)
+    let list = T::list_posts(manager, pagination, id)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let total = T::total_post(&state, manager, id)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let response = PostListResponse {
+        list,
+        total,
+    };
+
+    WithRelation::new(manager, response)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
         .map(Json::from)
 }
 
-#[derive(Debug, Clone, Serialize)]
-pub struct CategoryJson<T: Category> {
-    categories: Vec<WithThumb<T>>,
-    total: usize,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct CategoryPostsJson<T: Category> {
-    #[serde(flatten)]
-    category: WithThumb<T>,
-    total: usize,
-    posts: Vec<PostMiniJson>,
-}

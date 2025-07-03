@@ -1,8 +1,9 @@
 pub mod category;
-pub mod post;
 pub mod search;
 pub mod summary;
 pub mod utils;
+pub mod post;
+pub mod relation;
 
 use std::{
     path::Path,
@@ -18,7 +19,6 @@ use axum::{
 };
 use category::CategoryPostsApiRouter;
 use mini_moka::sync::Cache;
-use post::get_post_api;
 use post_archiver::{
     manager::PostArchiverManager, Author, AuthorId, Collection, CollectionId, Platform, PlatformId,
     Tag, TagId,
@@ -87,12 +87,12 @@ pub fn get_api_router(config: &Config) -> Router<()> {
     };
 
     let router = Router::new()
-        .route("/post/{id}", get(get_post_api))
         .route("/search", get(get_search_api))
         .route("/summary", get(get_summary_api))
         .route("/redirect", get(get_redirect_api))
         .route("/config.json", get(get_config_api));
 
+    let router = post::wrap_posts_route(router);
     let router = Tag::wrap_category_and_posts_route(router);
     let router = Author::wrap_category_and_posts_route(router);
     let router = Platform::wrap_category_and_posts_route(router);
@@ -138,7 +138,7 @@ async fn get_redirect_api(
     let id: Option<u32> = stmt.query_row([&url], |row| row.get(0)).ok();
 
     let url = match id {
-        Some(id) => format!("/post/{}", id),
+        Some(id) => format!("/posts/{}", id),
         None => url,
     };
 

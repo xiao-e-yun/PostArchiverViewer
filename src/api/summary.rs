@@ -8,7 +8,7 @@ use super::AppState;
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-pub struct SummaryJson {
+pub struct SummaryResponse {
     version: String,
     post_archiver_version: String,
     tags: u32,
@@ -19,7 +19,7 @@ pub struct SummaryJson {
 
 pub async fn get_summary_api(
     State(state): State<AppState>,
-) -> Result<Json<SummaryJson>, StatusCode> {
+) -> Result<Json<SummaryResponse>, StatusCode> {
     let manager = state.manager();
     let conn = manager.conn();
 
@@ -45,7 +45,7 @@ pub async fn get_summary_api(
         .query_row("SELECT COUNT() FROM collections", [], |row| row.get(0))
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Ok(Json(SummaryJson {
+    Ok(Json(SummaryResponse {
         version: VERSION.to_string(),
         post_archiver_version,
         platforms,

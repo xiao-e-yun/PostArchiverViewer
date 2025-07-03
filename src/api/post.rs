@@ -1,37 +1,82 @@
-use std::collections::HashSet;
-
 use axum::{
     extract::{Path, State},
     http::StatusCode,
-    Json,
+    routing::get,
+    Json, Router,
 };
+use axum_extra::extract::Query;
 use chrono::{DateTime, Utc};
 use post_archiver::{
-    content, Author, Collection, Comment, Content, FileMeta, FileMetaId, Platform, Post, PostId,
-    Tag,
+    Author, Collection, Comment, Content, FileMeta, FileMetaId, PlatformId, Post, PostId, Tag
 };
 use rusqlite::OptionalExtension;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use super::{utils::{get_file_metas, WithThumb}, AppState};
+use crate::api::{
+    search::{get_search_api, SearchQuery},
+    utils::{Pagination, PostListResponse},
+    AppState,
+};
+
+use super::relation::{RequireRelations, WithRelation};
+
+pub fn wrap_posts_route(router: Router<AppState>) -> Router<AppState> {
+    router
+        .route("/posts", get(list_posts_handler))
+        .route("/posts/{id}", get(get_post_handler))
+}
+
+async fn list_posts_handler(
+    Query(pagination): Query<Pagination>,
+    State(state): State<AppState>,
+) -> Result<Json<WithRelation<PostListResponse>>, StatusCode> {
+    get_search_api(
+        Query(pagination),
+        Query(SearchQuery::default()),
+        State(state),
+    )
+    .await
+}
 
 #[derive(Debug, Clone, Serialize, TS)]
 #[ts(export)]
-pub struct PostJson {
+pub struct PostResponse {
     pub id: PostId,
     pub title: String,
-    pub content: Vec<ContentJson>,
+    pub content: Vec<Content>,
     pub source: Option<String>,
     pub updated: DateTime<Utc>,
     pub published: DateTime<Utc>,
-    pub thumb: Option<FileMeta>,
-    pub platform: Option<Platform>,
+    pub thumb: Option<FileMetaId>,
+    pub platform: Option<PlatformId>,
 
     pub tags: Vec<Tag>,
-    pub authors: Vec<WithThumb<Author>>,
-    pub collections: Vec<WithThumb<Collection>>,
+    pub authors: Vec<Author>,
+    pub collections: Vec<Collection>,
     pub comments: Vec<Comment>,
+}
+
+impl RequireRelations for PostResponse {
+    fn platforms(&self) -> Vec<PlatformId> {
+        self.platform
+            .iter()
+            .cloned()
+            .chain(self.tags.iter().filter_map(|a| a.platform))
+            .collect()
+    }
+    fn file_metas(&self) -> Vec<FileMetaId> {
+        self.content
+            .iter()
+            .filter_map(|content| match content {
+                Content::File(file_meta) => Some(*file_meta),
+                _ => None,
+            })
+            .chain(self.thumb.iter().cloned())
+            .chain(self.authors.iter().flat_map(|a| a.thumb))
+            .chain(self.collections.iter().flat_map(|c| c.thumb))
+            .collect()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -42,10 +87,10 @@ pub enum ContentJson {
     File(FileMeta),
 }
 
-pub async fn get_post_api(
+pub async fn get_post_handler(
     Path(id): Path<PostId>,
     State(state): State<AppState>,
-) -> Result<Json<PostJson>, StatusCode> {
+) -> Result<Json<WithRelation<PostResponse>>, StatusCode> {
     let manager = state.manager();
 
     let mut stmt = manager
@@ -60,7 +105,7 @@ pub async fn get_post_api(
     else {
         return Err(StatusCode::NOT_FOUND);
     };
-
+    
     let tags = manager
         .list_post_tags(&id)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -73,81 +118,22 @@ pub async fn get_post_api(
         .list_post_collections(&id)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let platform = post
-        .platform
-        .map(|p| {
-            manager
-                .get_platform(&p)
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
-        })
-        .transpose()?;
-
-    let file_ids: HashSet<FileMetaId> = post
-        .content
-        .iter()
-        .cloned()
-        .filter_map(|content| match content {
-            Content::File(file_meta) => Some(file_meta),
-            _ => None,
-        })
-        .chain(post.thumb.iter().cloned())
-        .chain(authors.iter().filter_map(|a| a.thumb))
-        .chain(collections.iter().filter_map(|c| c.thumb))
-        .collect();
-
-    let file_metas =
-        get_file_metas(&manager, file_ids).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    let thumb = post.thumb.and_then(|thumb| file_metas.get(&thumb).cloned());
-
-    let authors = authors
-        .into_iter()
-        .map(|author| {
-            let thumb = author
-                .thumb
-                .and_then(|thumb| file_metas.get(&thumb).cloned());
-            WithThumb {
-                category: author,
-                thumb,
-            }
-        })
-        .collect::<Vec<_>>();
-
-    let collections = collections
-        .into_iter()
-        .map(|collection| {
-            let thumb = collection
-                .thumb
-                .and_then(|thumb| file_metas.get(&thumb).cloned());
-            WithThumb {
-                category: collection,
-                thumb,
-            }
-        })
-        .collect::<Vec<_>>();
-
-    let content = post
-        .content
-        .into_iter()
-        .filter_map(|c| match c {
-            content::Content::Text(text) => Some(ContentJson::Text(text)),
-            content::Content::File(id) => file_metas.get(&id).cloned().map(ContentJson::File),
-        })
-        .collect::<Vec<_>>();
-
-    Ok(Json(PostJson {
-        id: post.id,
-        title: post.title,
-        content,
-        thumb,
-        platform,
-        source: post.source,
-        updated: post.updated,
-        published: post.published,
-        comments: post.comments,
-
-        tags,
-        authors,
-        collections,
-    }))
+    WithRelation::new(
+        &manager,
+        PostResponse {
+            id: post.id,
+            title: post.title,
+            content: post.content,
+            thumb: post.thumb,
+            platform: post.platform,
+            source: post.source,
+            updated: post.updated,
+            published: post.published,
+            comments: post.comments,
+            tags,
+            authors,
+            collections,
+        },
+    ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+        .map(Json::from)
 }

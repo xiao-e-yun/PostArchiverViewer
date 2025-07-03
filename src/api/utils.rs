@@ -1,14 +1,14 @@
-use std::collections::{HashMap, HashSet};
-
 use chrono::{DateTime, Utc};
 use post_archiver::{
-    manager::PostArchiverManager, FileMeta, FileMetaId, PostId, POSTS_PRE_CHUNK,
+    AuthorId, CollectionId, FileMetaId, PlatformId, PostId, TagId
 };
 use rusqlite::Row;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+use super::relation::RequireRelations;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Pagination {
     pub limit: Option<u32>,
     pub page: Option<u32>,
@@ -23,63 +23,61 @@ impl Pagination {
         self.page.unwrap_or(0)
     }
 
-    pub fn to_sql(&self) -> String {
+    pub fn params(&self) -> [u32; 2] {
         let limit = self.limit();
         let page = self.page() * limit;
-        format!("LIMIT {} OFFSET {}", limit, page)
+        [limit, page]
     }
 }
 
-#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[ts(export)]
-pub struct PostMiniJson {
+pub struct PostPreview {
     pub id: PostId,
     pub title: String,
-    pub thumb: Option<String>,
+    pub thumb: Option<FileMetaId>,
     pub updated: DateTime<Utc>,
 }
 
-impl PostMiniJson {
+impl PostPreview {
     pub fn from_row(row: &Row) -> Result<Self, rusqlite::Error> {
-        let id = row.get("id")?;
-        let filename: Option<String> = row.get("thumb")?;
-        Ok(PostMiniJson {
-            id,
+        Ok(Self {
+            id: row.get("id")?,
             title: row.get("title")?,
+            thumb: row.get("thumb")?,
             updated: row.get("updated")?,
-            thumb: filename.map(|f| into_thumb_url(id, f)),
         })
     }
 }
 
-pub fn get_file_metas(
-    manager: &PostArchiverManager,
-    file_ids: HashSet<FileMetaId>,
-) -> Result<HashMap<FileMetaId, FileMeta>, rusqlite::Error> {
-    let mut stmt = manager
-        .conn()
-        .prepare_cached("SELECT * FROM file_metas WHERE id IN (SELECT value FROM json_each(?))")?;
-
-    let file_metas = stmt.query_map([serde_json::to_string(&file_ids).unwrap()], |row| {
-        FileMeta::from_row(row).map(|meta| (meta.id, meta))
-    })?;
-
-    file_metas.collect()
-}
-
-pub fn into_thumb_url(post: PostId, filename: String) -> String {
-    format!(
-        "{}/{}/{}",
-        *post / POSTS_PRE_CHUNK,
-        *post % POSTS_PRE_CHUNK,
-        filename
-    )
+impl RequireRelations for PostPreview {
+    fn file_metas(&self) -> Vec<FileMetaId> {
+        self.thumb.into_iter().collect()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, TS)]
-pub struct WithThumb<T> {
-    #[serde(flatten)]
-    pub category: T,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub thumb: Option<FileMeta>,
+#[ts(export)]
+pub struct ListResponse<T> {
+    pub list: Vec<T>,
+    pub total: usize,
+}
+pub type PostListResponse = ListResponse<PostPreview>;
+
+impl<T: RequireRelations + TS> RequireRelations for ListResponse<T> {
+    fn authors(&self) -> Vec<AuthorId> {
+        self.list.authors()
+    }
+    fn collections(&self) -> Vec<CollectionId> {
+        self.list.collections()
+    }
+    fn platforms(&self) -> Vec<PlatformId> {
+        self.list.platforms()
+    }
+    fn tags(&self) -> Vec<TagId> {
+        self.list.tags()
+    }
+    fn file_metas(&self) -> Vec<FileMetaId> {
+        self.list.file_metas()
+    }
 }
