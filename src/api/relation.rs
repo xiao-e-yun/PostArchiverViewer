@@ -12,22 +12,27 @@ use super::category::Category;
 
 #[derive(Debug, Serialize, TS)]
 #[ts(export)]
-pub struct WithRelation<T: Debug> {
+pub struct WithRelations<T: Debug> {
     #[serde(flatten)]
     pub inner: T,
     #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<Vec<Author>>", optional)]
     pub authors: Vec<Author>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<Vec<Collection>>", optional)]
     pub collections: Vec<Collection>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<Vec<Platform>>", optional)]
     pub platforms: Vec<Platform>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<Vec<Tag>>", optional)]
     pub tags: Vec<Tag>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<Vec<FileMeta>>", optional)]
     pub file_metas: Vec<FileMeta>,
 }
 
-impl<T: Debug + RequireRelations> WithRelation<T> {
+impl<T: Debug + RequireRelations> WithRelations<T> {
     pub fn new(manager: &PostArchiverManager, inner: T) -> Result<Self, rusqlite::Error> {
         let conn = manager.conn();
 

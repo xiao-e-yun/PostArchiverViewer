@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use super::{
-    relation::{RequireRelations, WithRelation},
+    relation::{RequireRelations, WithRelations},
     utils::{ListResponse, Pagination, PostListResponse, PostPreview},
     AppState,
 };
@@ -160,14 +160,14 @@ pub trait CategoryPostsApiRouter: CategoryApiRouter {
     fn get(
         manager: &PostArchiverManager,
         id: Self::Id,
-    ) -> Result<Option<WithRelation<Self>>, rusqlite::Error> {
+    ) -> Result<Option<WithRelations<Self>>, rusqlite::Error> {
         let mut stmt = manager
             .conn()
             .prepare_cached(&format!("SELECT * FROM {} WHERE id = ?", Self::TABLE_NAME))?;
 
         stmt.query_row([id], Self::from_row)
             .optional()?
-            .map(|c| WithRelation::new(manager, c))
+            .map(|c| WithRelations::new(manager, c))
             .transpose()
     }
 }
@@ -182,14 +182,14 @@ async fn list_category_handler<T: CategoryApiRouter>(
     Query(filter): Query<Filter>,
     Query(pagination): Query<Pagination>,
     State(state): State<AppState>,
-) -> Result<Json<WithRelation<ListResponse<T>>>, StatusCode> {
+) -> Result<Json<WithRelations<ListResponse<T>>>, StatusCode> {
     let manager = &state.manager();
     let list = T::list(manager, pagination, filter.search.clone())
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let total =
         T::total(&state, manager, filter.search).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    WithRelation::new(
+    WithRelations::new(
         manager,
         ListResponse { list, total },
     )
@@ -200,7 +200,7 @@ async fn list_category_handler<T: CategoryApiRouter>(
 async fn get_category_handler<T: CategoryPostsApiRouter>(
     Path(id): Path<u32>,
     State(state): State<AppState>,
-) -> Result<Json<WithRelation<T>>, StatusCode> {
+) -> Result<Json<WithRelations<T>>, StatusCode> {
     let manager = &state.manager();
     let id: T::Id = id.into();
 
@@ -214,7 +214,7 @@ async fn list_category_posts_handler<T: CategoryPostsApiRouter>(
     Path(id): Path<u32>,
     Query(pagination): Query<Pagination>,
     State(state): State<AppState>,
-) -> Result<Json<WithRelation<PostListResponse>>, StatusCode> {
+) -> Result<Json<WithRelations<PostListResponse>>, StatusCode> {
     let manager = &state.manager();
     let id: T::Id = id.into();
 
@@ -229,7 +229,7 @@ async fn list_category_posts_handler<T: CategoryPostsApiRouter>(
         total,
     };
 
-    WithRelation::new(manager, response)
+    WithRelations::new(manager, response)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
         .map(Json::from)
 }

@@ -19,7 +19,7 @@ use crate::api::{
     AppState,
 };
 
-use super::relation::{RequireRelations, WithRelation};
+use super::relation::{RequireRelations, WithRelations};
 
 pub fn wrap_posts_route(router: Router<AppState>) -> Router<AppState> {
     router
@@ -30,7 +30,7 @@ pub fn wrap_posts_route(router: Router<AppState>) -> Router<AppState> {
 async fn list_posts_handler(
     Query(pagination): Query<Pagination>,
     State(state): State<AppState>,
-) -> Result<Json<WithRelation<PostListResponse>>, StatusCode> {
+) -> Result<Json<WithRelations<PostListResponse>>, StatusCode> {
     get_search_api(
         Query(pagination),
         Query(SearchQuery::default()),
@@ -90,7 +90,7 @@ pub enum ContentJson {
 pub async fn get_post_handler(
     Path(id): Path<PostId>,
     State(state): State<AppState>,
-) -> Result<Json<WithRelation<PostResponse>>, StatusCode> {
+) -> Result<Json<WithRelations<PostResponse>>, StatusCode> {
     let manager = state.manager();
 
     let mut stmt = manager
@@ -118,7 +118,7 @@ pub async fn get_post_handler(
         .list_post_collections(&id)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    WithRelation::new(
+    WithRelations::new(
         &manager,
         PostResponse {
             id: post.id,

@@ -3,7 +3,7 @@ use post_archiver::{Alias, Author, AuthorId, PlatformId};
 use axum::{extract::{Path, State}, http::StatusCode, routing::get, Json, Router};
 use rusqlite::Row;
 
-use crate::api::{category::{get_category_handler, list_category_posts_handler}, relation::{RequireRelations, WithRelation}, AppState};
+use crate::api::{category::{get_category_handler, list_category_posts_handler}, relation::{RequireRelations, WithRelations}, utils::ListResponse, AppState};
 
 use super::{Category, CategoryApiRouter, CategoryPostsApiRouter};
 
@@ -54,12 +54,13 @@ impl CategoryPostsApiRouter for Author {
 pub async fn author_aliases_handler(
     State(state): State<AppState>,
     Path(id): Path<AuthorId>,
-) -> Result<Json<WithRelation<Vec<Alias>>>, StatusCode> {
+) -> Result<Json<WithRelations<ListResponse<Alias>>>, StatusCode> {
     let manager = &state.manager();
-    let aliases = manager.list_author_aliases(id)
+    let list = manager.list_author_aliases(id)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let total = list.len();
 
-    WithRelation::new(manager, aliases)
+    WithRelations::new(manager, ListResponse { list, total })
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
         .map(Json::from)
 }

@@ -10,7 +10,7 @@ use crate::config::Config;
 use tracing::info;
 
 use super::{
-    relation::WithRelation,
+    relation::WithRelations,
     utils::{ListResponse, Pagination, PostPreview},
     AppState,
 };
@@ -85,7 +85,7 @@ pub async fn get_search_api(
     Query(pagination): Query<Pagination>,
     Query(query): Query<SearchQuery>,
     State(state): State<AppState>,
-) -> Result<Json<WithRelation<ListResponse<PostPreview>>>, StatusCode> {
+) -> Result<Json<WithRelations<ListResponse<PostPreview>>>, StatusCode> {
     let manager = state.manager();
     let conn = manager.conn();
 
@@ -129,7 +129,7 @@ pub async fn get_search_api(
         }
     };
 
-    WithRelation::new(&manager, ListResponse { list, total })
+    WithRelations::new(&manager, ListResponse { list, total })
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
         .map(Json::from)
 }
