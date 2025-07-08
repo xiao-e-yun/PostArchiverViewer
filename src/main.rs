@@ -1,5 +1,3 @@
-#![feature(associated_type_defaults)]
-
 mod api;
 pub mod config;
 pub mod frontend;
