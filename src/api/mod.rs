@@ -1,9 +1,9 @@
 pub mod category;
+pub mod post;
+pub mod relation;
 pub mod search;
 pub mod summary;
 pub mod utils;
-pub mod post;
-pub mod relation;
 
 use std::{
     path::Path,

@@ -1,9 +1,19 @@
+use axum::{
+    extract::{Path, State},
+    http::StatusCode,
+    routing::get,
+    Json, Router,
+};
 use mini_moka::sync::Cache;
 use post_archiver::{Alias, Author, AuthorId, PlatformId};
-use axum::{extract::{Path, State}, http::StatusCode, routing::get, Json, Router};
 use rusqlite::Row;
 
-use crate::api::{category::{get_category_handler, list_category_posts_handler}, relation::{RequireRelations, WithRelations}, utils::ListResponse, AppState};
+use crate::api::{
+    category::{get_category_handler, list_category_posts_handler},
+    relation::{RequireRelations, WithRelations},
+    utils::ListResponse,
+    AppState,
+};
 
 use super::{Category, CategoryApiRouter, CategoryPostsApiRouter};
 
@@ -31,23 +41,24 @@ impl CategoryPostsApiRouter for Author {
     const JOIN_RELATION: &'static str = "JOIN author_posts ON author_posts.post = posts.id";
     const FILTER: &'static str = "author_posts.author";
 
-    fn post_cache(
-            state: &crate::api::AppState,
-    ) -> &Cache<Self::Id, usize> {
+    fn post_cache(state: &crate::api::AppState) -> &Cache<Self::Id, usize> {
         &state.caches.authors
     }
 
     fn wrap_category_and_posts_route(router: Router<AppState>) -> Router<AppState> {
-        Self::wrap_category_route(router).route(
-            &format!("/{}/{{id}}", Self::ROUTE_NAME),
-            get(get_category_handler::<Self>),
-        ).route(
-            &format!("/{}/{{id}}/posts", Self::ROUTE_NAME),
-            get(list_category_posts_handler::<Self>),
-        ).route(
-            &format!("/{}/{{id}}/aliases", Self::ROUTE_NAME),
-            get(author_aliases_handler),
-        )
+        Self::wrap_category_route(router)
+            .route(
+                &format!("/{}/{{id}}", Self::ROUTE_NAME),
+                get(get_category_handler::<Self>),
+            )
+            .route(
+                &format!("/{}/{{id}}/posts", Self::ROUTE_NAME),
+                get(list_category_posts_handler::<Self>),
+            )
+            .route(
+                &format!("/{}/{{id}}/aliases", Self::ROUTE_NAME),
+                get(author_aliases_handler),
+            )
     }
 }
 
@@ -56,7 +67,8 @@ pub async fn author_aliases_handler(
     Path(id): Path<AuthorId>,
 ) -> Result<Json<WithRelations<ListResponse<Alias>>>, StatusCode> {
     let manager = &state.manager();
-    let list = manager.list_author_aliases(id)
+    let list = manager
+        .list_author_aliases(id)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let total = list.len();
 

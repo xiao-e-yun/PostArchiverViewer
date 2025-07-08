@@ -1,7 +1,5 @@
 use chrono::{DateTime, Utc};
-use post_archiver::{
-    AuthorId, CollectionId, FileMetaId, PlatformId, PostId, TagId
-};
+use post_archiver::{AuthorId, CollectionId, FileMetaId, PlatformId, PostId, TagId};
 use rusqlite::Row;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;

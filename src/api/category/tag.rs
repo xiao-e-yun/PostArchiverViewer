@@ -30,9 +30,7 @@ impl CategoryPostsApiRouter for Tag {
     const JOIN_RELATION: &'static str = "JOIN post_tags ON post_tags.post = posts.id";
     const FILTER: &'static str = "post_tags.tag";
 
-    fn post_cache(
-            state: &crate::api::AppState,
-    ) -> &Cache<Self::Id, usize> {
+    fn post_cache(state: &crate::api::AppState) -> &Cache<Self::Id, usize> {
         &state.caches.tags
     }
 }

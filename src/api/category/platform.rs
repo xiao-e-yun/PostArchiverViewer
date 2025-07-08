@@ -26,9 +26,7 @@ impl CategoryPostsApiRouter for Platform {
     const FILTER: &'static str = "posts.platform";
     const JOIN_RELATION: &'static str = "";
 
-    fn post_cache(
-            state: &crate::api::AppState,
-    ) -> &Cache<Self::Id, usize> {
+    fn post_cache(state: &crate::api::AppState) -> &Cache<Self::Id, usize> {
         &state.caches.platforms
     }
 }

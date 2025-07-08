@@ -30,9 +30,7 @@ impl CategoryPostsApiRouter for Collection {
     const JOIN_RELATION: &'static str = "JOIN collection_posts ON collection_posts.post = posts.id";
     const FILTER: &'static str = "collection_posts.collection";
 
-    fn post_cache(
-        state: &crate::api::AppState,
-    ) -> &Cache<Self::Id, usize> {
+    fn post_cache(state: &crate::api::AppState) -> &Cache<Self::Id, usize> {
         &state.caches.collections
     }
 }

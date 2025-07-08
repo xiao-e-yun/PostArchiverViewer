@@ -13,7 +13,7 @@ use axum::{
 };
 use axum_extra::extract::Query;
 use mini_moka::sync::Cache;
-use post_archiver::{manager::PostArchiverManager};
+use post_archiver::manager::PostArchiverManager;
 use rusqlite::{params, OptionalExtension, Row, ToSql};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -50,7 +50,10 @@ pub trait CategoryApiRouter: Category + 'static {
         let (filter, params) = if search.is_empty() {
             ("", params![limit, offset])
         } else {
-            ("WHERE name LIKE concat('%',?,'%')", params![search, limit, offset])
+            (
+                "WHERE name LIKE concat('%',?,'%')",
+                params![search, limit, offset],
+            )
         };
 
         let mut stmt = manager.conn().prepare_cached(&format!(
@@ -60,8 +63,7 @@ pub trait CategoryApiRouter: Category + 'static {
             Self::ORDER_BY,
         ))?;
 
-        let list = stmt
-            .query_map(params, Self::from_row)?;
+        let list = stmt.query_map(params, Self::from_row)?;
 
         list.collect()
     }
@@ -189,10 +191,7 @@ async fn list_category_handler<T: CategoryApiRouter>(
     let total =
         T::total(&state, manager, filter.search).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    WithRelations::new(
-        manager,
-        ListResponse { list, total },
-    )
+    WithRelations::new(manager, ListResponse { list, total })
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
         .map(Json::from)
 }
@@ -218,19 +217,15 @@ async fn list_category_posts_handler<T: CategoryPostsApiRouter>(
     let manager = &state.manager();
     let id: T::Id = id.into();
 
-    let list = T::list_posts(manager, pagination, id)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let list =
+        T::list_posts(manager, pagination, id).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let total = T::total_post(&state, manager, id)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let total =
+        T::total_post(&state, manager, id).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let response = PostListResponse {
-        list,
-        total,
-    };
+    let response = PostListResponse { list, total };
 
     WithRelations::new(manager, response)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
         .map(Json::from)
 }
-

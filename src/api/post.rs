@@ -7,7 +7,7 @@ use axum::{
 use axum_extra::extract::Query;
 use chrono::{DateTime, Utc};
 use post_archiver::{
-    Author, Collection, Comment, Content, FileMeta, FileMetaId, PlatformId, Post, PostId, Tag
+    Author, Collection, Comment, Content, FileMeta, FileMetaId, PlatformId, Post, PostId, Tag,
 };
 use rusqlite::OptionalExtension;
 use serde::{Deserialize, Serialize};
@@ -105,7 +105,7 @@ pub async fn get_post_handler(
     else {
         return Err(StatusCode::NOT_FOUND);
     };
-    
+
     let tags = manager
         .list_post_tags(&id)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -134,6 +134,7 @@ pub async fn get_post_handler(
             authors,
             collections,
         },
-    ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
-        .map(Json::from)
+    )
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+    .map(Json::from)
 }

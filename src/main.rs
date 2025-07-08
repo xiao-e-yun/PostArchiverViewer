@@ -16,7 +16,6 @@ use images::get_images_router;
 use local_ip_address::local_ip;
 use qrcode::{render::unicode, QrCode};
 use resource::get_resource_router;
-use tracing_subscriber::fmt::{self, time::UtcTime};
 use std::net::SocketAddr;
 use tower::ServiceBuilder;
 use tower_http::{
@@ -25,14 +24,15 @@ use tower_http::{
     trace::TraceLayer,
 };
 use tracing::{error, info};
+use tracing_subscriber::fmt::{self, time::UtcTime};
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[tokio::main]
 async fn main() {
-    let timer = UtcTime::new(time::format_description::parse(
-        "[year]-[month]-[day] [hour]:[minute]:[second]",
-    ).unwrap());
+    let timer = UtcTime::new(
+        time::format_description::parse("[year]-[month]-[day] [hour]:[minute]:[second]").unwrap(),
+    );
 
     let format = fmt::format()
         .with_level(true)
