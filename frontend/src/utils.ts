@@ -1,6 +1,34 @@
 import { toValue, type MaybeRefOrGetter } from "vue";
 import type { FileMeta } from "@api/FileMeta";
+import type { WithRelations } from "@api/WithRelations";
 import { usePublicConfig } from "./api";
+import { reactiveComputed } from "@vueuse/core";
+
+export function useRelations<T>(
+  data: MaybeRefOrGetter<WithRelations<T> | null | undefined>,
+) {
+  return reactiveComputed(() => {
+    const relations = toValue(data) ?? ({} as WithRelations<T>);
+
+    const toMap = <T extends { id: number }>(values?: T[]) =>
+      new Map(values ? values.map((v) => [v.id, v]) : []);
+    const maps = {
+      authors: toMap(relations.authors),
+      collections: toMap(relations.collections),
+      platforms: toMap(relations.platforms),
+      tags: toMap(relations.tags),
+      fileMetas: toMap(relations.file_metas),
+    };
+
+    return {
+      ...maps,
+      fileMetaPath(id: number): string | undefined {
+        const fileMeta = maps.fileMetas.get(id);
+        return fileMeta && getFileMetaPath(fileMeta);
+      },
+    };
+  });
+}
 
 export function getFileMetaPath(fileMeta: FileMeta) {
   const config = usePublicConfig();
@@ -9,7 +37,7 @@ export function getFileMetaPath(fileMeta: FileMeta) {
     : (config.resource_url ?? "/resource");
   return (
     url.replace(/\/$/, "") +
-    `/${fileMeta.author}/${fileMeta.post}/${fileMeta.filename}`
+    `/${Math.floor(fileMeta.post / 2048)}/${fileMeta.post % 2048}/${fileMeta.filename}`
   );
 }
 

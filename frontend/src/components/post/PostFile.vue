@@ -28,8 +28,6 @@ function hasExtra(extra: FileMeta["extra"]) {
 function getExt(file: FileMeta) {
   return file.filename.slice(file.filename.indexOf("."));
 }
-
-//TODO: implement comment
 </script>
 
 <template>

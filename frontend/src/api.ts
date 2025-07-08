@@ -1,15 +1,7 @@
-import type { AuthorPostsJson } from "@api/AuthorPostsJson";
-import type { AuthorJson } from "@api/AuthorJson";
-import type { PostJson } from "@api/PostJson";
-import type { SummaryJson } from "@api/SummaryJson";
 import type { PublicConfig } from "@api/PublicConfig";
+import type { Author, Collection, Platform, Tag } from "post-archiver";
 
-export type AuthorsAPI = AuthorJson[];
-export type AuthorAPI = AuthorJson;
-export type PostsAPI = AuthorPostsJson;
-export type PostAPI = PostJson;
-export type TagsAPI = Record<number, string>;
-export type SummaryAPI = SummaryJson;
+export type Category = Platform | Tag | Collection | Author;
 
 let publicConfig = {} as PublicConfig;
 export const usePublicConfig = () => publicConfig;

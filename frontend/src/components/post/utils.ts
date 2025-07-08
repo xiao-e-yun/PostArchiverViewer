@@ -1,8 +1,10 @@
-import type { PostAPI } from "@/api";
 import type { InjectionKey, Ref } from "vue";
 
-export interface PostOptions {
-  post: Ref<PostAPI | null>;
-}
+import type { PostResponse } from "@api/PostResponse";
+import type { WithRelations } from "@api/WithRelations";
+import type { useRelations } from "@/utils";
 
-export const postKey = Symbol("post") as InjectionKey<PostOptions>;
+export const postKey = Symbol("post") as InjectionKey<{
+  post: Ref<WithRelations<PostResponse> | null>;
+  relations: ReturnType<typeof useRelations<PostResponse>>;
+}>;

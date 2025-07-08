@@ -3,21 +3,60 @@ import { computed, inject } from "vue";
 import { postKey } from "./utils";
 import { Skeleton } from "../ui/skeleton";
 import { Badge } from "../ui/badge";
+import DoubleBadge from "../DoubleBadge.vue";
+import type { Tag } from "post-archiver";
 
-const { post } = inject(postKey)!;
-const author = computed(() => post.value?.author);
+const { post, relations } = inject(postKey)!;
 const tags = computed(() => post.value?.tags);
+const authors = computed(() => post.value?.authors);
+const collections = computed(() => post.value?.collections);
+const platform = computed(
+  () => post.value?.platform && relations.platforms.get(post.value.platform),
+);
+const getPlatform = (tag: Tag) => {
+  const platform = relations.platforms.get(tag.platform!)!;
+  return { name: platform.name, link: `/platforms/${platform.id}` };
+};
+
+const source = computed(() => {
+  const source = post.value?.source;
+  if (!source) return null;
+  try {
+    const url = new URL(source);
+    if (!url.protocol.startsWith("http")) {
+      return null;
+    }
+    return url.href;
+  } catch (_) {
+    return null;
+  }
+});
 </script>
 
 <template>
   <!-- first -->
   <div class="flex gap-2 my-4 flex-wrap">
-    <RouterLink v-if="author" :to="`/author/${author.id}`">
-      <Badge title="Author">{{ author.name }}</Badge>
-    </RouterLink>
+    <template v-if="authors">
+      <RouterLink
+        v-for="author in authors"
+        :key="author.id"
+        :to="`/authors/${author.id}`"
+        class="flex items-center gap-1"
+      >
+        <Badge title="Author">@{{ author.name }}</Badge>
+      </RouterLink>
+    </template>
     <Skeleton v-else class="rounded-full w-24 h-[24px]" />
-    <a v-if="post?.source" :href="post.source">
-      <Badge variant="secondary">source</Badge>
+    <RouterLink
+      v-if="platform"
+      :to="`/platforms/${platform.id}`"
+      class="flex items-center gap-1"
+    >
+      <Badge>{{ platform.name }}</Badge>
+    </RouterLink>
+    <Skeleton v-else class="rounded-full w-16 h-[24px]" />
+    <a v-if="source" :href="source">
+      <Badge variant="secondary">Source</Badge>
     </a>
   </div>
   <!-- secondary -->
@@ -45,13 +84,29 @@ const tags = computed(() => post.value?.tags);
         {{ new Date(post.published).toLocaleString("zh-CN") }}
       </Badge>
     </template>
-    <template v-if="tags === undefined">
+    <template v-if="!post">
       <Skeleton class="rounded-full w-20" />
       <Skeleton class="rounded-full w-16" />
       <Skeleton class="rounded-full w-10" />
     </template>
-    <Badge v-for="tag in tags" v-else :key="tag.id" variant="secondary">
-      {{ tag.name }}
-    </Badge>
+    <!-- Collections -->
+    <RouterLink
+      v-for="collection in collections"
+      :key="collection.id"
+      :to="`/collections/${collection.id}`"
+    >
+      <Badge>
+        {{ collection.name }}
+      </Badge>
+    </RouterLink>
+    <!-- Tags -->
+    <RouterLink v-for="tag in tags" :key="tag.id" :to="`/tags/${tag.id}`">
+      <DoubleBadge
+        v-if="tag.platform"
+        :main="{ name: '#' + tag.name, link: `/tags/${tag.id}` }"
+        :category="getPlatform(tag)"
+      />
+      <Badge v-else variant="secondary"> #{{ tag.name }} </Badge>
+    </RouterLink>
   </div>
 </template>

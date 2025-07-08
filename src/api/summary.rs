@@ -15,6 +15,8 @@ pub struct SummaryResponse {
     authors: u32,
     collections: u32,
     platforms: u32,
+    posts: u32,
+    files: u32,
 }
 
 pub async fn get_summary_api(
@@ -45,6 +47,14 @@ pub async fn get_summary_api(
         .query_row("SELECT COUNT() FROM collections", [], |row| row.get(0))
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+    let posts: u32 = conn
+        .query_row("SELECT COUNT() FROM posts", [], |row| row.get(0))
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let files: u32 = conn
+        .query_row("SELECT COUNT() FROM file_metas", [], |row| row.get(0))
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
     Ok(Json(SummaryResponse {
         version: VERSION.to_string(),
         post_archiver_version,
@@ -52,5 +62,7 @@ pub async fn get_summary_api(
         collections,
         authors,
         tags,
+        posts,
+        files,
     }))
 }

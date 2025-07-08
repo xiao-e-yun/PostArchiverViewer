@@ -1,18 +1,18 @@
 <script lang="ts" setup>
-import type { PostAPI } from "@/api";
 import { computed } from "vue";
 import { useFetch } from "@vueuse/core";
-import { getUrlWithParams } from "@/utils";
-import { RouterLink, useRoute } from "vue-router";
+import { RouterLink } from "vue-router";
 import PostView from "@/components/post/PostView.vue";
+import { useRouteParams } from "@vueuse/router";
+import type { WithRelations } from "@api/WithRelations";
+import type { PostResponse } from "@api/PostResponse";
 
-const route = useRoute();
-const id = computed(() => route.params.post as string | undefined);
-const url = computed(() => getUrlWithParams("/api/post", { post: id }).href);
+const id = useRouteParams("id", "0", { transform: Number });
+const url = computed(() => `/api/posts/${id.value}`);
 
 const { data: post, statusCode } = useFetch(url, {
   refetch: true,
-}).json<PostAPI>();
+}).json<WithRelations<PostResponse>>();
 </script>
 
 <template>

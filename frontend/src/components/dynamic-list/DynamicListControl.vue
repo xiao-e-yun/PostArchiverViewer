@@ -11,7 +11,7 @@ import {
   PaginationPrev,
 } from "../ui/pagination";
 import { LayoutListIcon } from "lucide-vue-next";
-import { postListControlKey, usePostListControlUtils } from "./utils";
+import { dynamicListControlKey, useDynamicListControlUtils } from "./utils";
 import {
   SelectValue,
   SelectContent,
@@ -22,9 +22,13 @@ import {
 import { Button } from "../ui/button";
 import { useRouter } from "vue-router";
 
-const { total, pageIndex, postsPrePage } = inject(postListControlKey)!;
+const {
+  total,
+  pageIndex,
+  itemsPrePage: postsPrePage,
+} = inject(dynamicListControlKey)!;
 
-const { smallMode, siblingCount } = usePostListControlUtils();
+const { smallMode, siblingCount } = useDynamicListControlUtils();
 const postsPrePageSelectValue = computed({
   get: () => postsPrePage.value?.toString(),
   set: (value: string) => (postsPrePage.value = parseInt(value)),

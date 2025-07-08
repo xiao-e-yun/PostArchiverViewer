@@ -9,7 +9,7 @@ import { throttle } from "lodash";
 import { Skeleton } from "../ui/skeleton";
 import PostComments from "./PostComments.vue";
 
-const { post } = inject(postKey)!;
+const { post, relations } = inject(postKey)!;
 
 const marked = new Marked({
   renderer: {
@@ -32,7 +32,7 @@ const contents = computed(() => {
       textList.push(markedContent);
     } else {
       if (textList.length) contents.push(textList.join(""));
-      contents.push(c);
+      contents.push(relations.fileMetas.get(c)!);
       textList = [];
     }
   }

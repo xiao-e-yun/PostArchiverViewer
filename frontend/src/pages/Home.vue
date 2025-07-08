@@ -1,83 +1,86 @@
 <script lang="ts" setup>
-import Image from "@/components/image/DynamicImage.vue";
-import { Badge } from "@/components/ui/badge";
 import {
-  Card,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import type { AuthorsAPI } from "@/api";
-import { useFetch } from "@vueuse/core";
-import { ImageOff } from "lucide-vue-next";
+  ChevronRight,
+  Folders,
+  Newspaper,
+  Quote,
+  Tags,
+  UsersRound,
+} from "lucide-vue-next";
 import { RouterLink } from "vue-router";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useLazyLoad } from "@/lazyload";
 import { useTemplateRef, watch } from "vue";
-import { getFileMetaPath } from "@/utils";
-
-const { data: authors, isFetching } =
-  useFetch("/api/authors").json<AuthorsAPI>();
+import PostList from "@/components/PostList.vue";
+import { Separator } from "@/components/ui/separator";
+import CategoryList from "@/components/CategoryList.vue";
 
 const authorsEl = useTemplateRef<HTMLDialogElement>("authorsList");
 watch(authorsEl, (el) => el && useLazyLoad().update());
 </script>
 
 <template>
-  <div
-    v-if="isFetching"
-    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-  >
-    <Skeleton v-for="i in 8" :key="i" class="aspect-video" />
-  </div>
-  <div
-    v-else
-    ref="authorsList"
-    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-  >
-    <RouterLink
-      v-for="author in authors"
-      :key="author.id"
-      :to="`/author/${author.id}`"
-    >
-      <Card
-        class="transition-transform hover:scale-105 hover:z-10 relative aspect-video"
-      >
-        <div
-          class="z-10 relative bg-background/60 w-full h-full flex flex-col justify-between"
-        >
-          <CardHeader>
-            <CardTitle>{{ author.name }}</CardTitle>
-            <CardDescription>{{
-              new Date(author.updated).toLocaleString("zh-CN")
-            }}</CardDescription>
-          </CardHeader>
-          <CardFooter class="flex gap-2 capitalize">
-            <a
-              v-for="link in author.links.slice(0, 2)"
-              :key="link.url"
-              :href="link.url"
-              @click.stop
-            >
-              <Badge>{{ link.name }}</Badge>
-            </a>
-            <Badge v-if="author.links.length > 3">...</Badge>
-          </CardFooter>
-        </div>
-        <Image
-          v-if="author.thumb"
-          :src="getFileMetaPath(author.thumb)"
-          format="webp"
-          :aspect="16 / 9"
-          class="absolute inset-0 object-cover max-h-full w-full rounded-lg"
-        />
-        <ImageOff
-          v-else
-          class="absolute inset-0 w-full h-full p-4"
-          :stroke-width="0.5"
-        />
-      </Card>
-    </RouterLink>
-  </div>
+  <RouterLink to="/authors" class="block mb-8">
+    <div class="flex justify-between">
+      <h1 class="text-base lg:text-2xl">
+        <UsersRound :size="30" class="inline-block mr-2" />
+        Authors
+      </h1>
+
+      <ChevronRight :size="30" />
+    </div>
+    <Separator class="my-2" />
+    <CategoryList category="authors" :controls="false" :limit="5" inline />
+  </RouterLink>
+
+  <RouterLink to="/posts" class="block mb-8">
+    <div class="flex justify-between">
+      <h1 class="text-base lg:text-2xl">
+        <Newspaper :size="30" class="inline-block mr-2" />
+        Posts
+      </h1>
+
+      <ChevronRight :size="30" />
+    </div>
+    <Separator class="my-2" />
+    <PostList url="/api/posts" :controls="false" :limit="5" inline />
+  </RouterLink>
+
+  <RouterLink to="/tags" class="block mb-8">
+    <div class="flex justify-between">
+      <h1 class="text-base lg:text-2xl">
+        <Folders :size="30" class="inline-block mr-2" />
+        Collections
+      </h1>
+
+      <ChevronRight :size="30" />
+    </div>
+    <Separator class="my-2" />
+    <CategoryList category="collections" :controls="false" :limit="5" inline />
+  </RouterLink>
+
+  <RouterLink to="/tags" class="block mb-8">
+    <div class="flex justify-between">
+      <h1 class="text-base lg:text-2xl">
+        <Tags :size="30" class="inline-block mr-2" />
+        Tags
+      </h1>
+
+      <ChevronRight :size="30" />
+    </div>
+    <Separator class="my-2" />
+    <CategoryList category="tags" :controls="false" :limit="6" inline />
+  </RouterLink>
+
+  <RouterLink to="/platforms" class="block mb-8">
+    <div class="flex justify-between">
+      <h1 class="text-base lg:text-2xl">
+        <Quote :size="30" class="inline-block mr-2" />
+        Platforms
+      </h1>
+
+      <ChevronRight :size="30" />
+    </div>
+    <Separator class="my-2" />
+    <CategoryList category="platforms" :controls="false" :limit="6" inline />
+  </RouterLink>
 </template>

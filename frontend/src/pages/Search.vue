@@ -1,53 +1,39 @@
 <script lang="ts" setup>
-import PostList from "@/components/post-list/PostList.vue";
-import { postListRestoreKey } from "@/components/post-list/utils";
-import SearchInput from "@/components/search/SearchInput.vue";
-import { searchRestoreKey } from "@/components/search/utils";
-import type { UrlParams } from "@/utils";
-import { useEventBus } from "@vueuse/core";
-import { omitBy } from "lodash";
-import { onMounted, onUnmounted, shallowRef } from "vue";
-import { useRouter } from "vue-router";
+import PostList from "@/components/PostList.vue";
+import SearchInput from "@/components/SearchInput.vue";
+import { useRouteQuery } from "@vueuse/router";
+import { computed } from "vue";
 
-const querys = shallowRef<UrlParams>();
+const asArray = <T,>(v: T | T[]) => (Array.isArray(v) ? v : [v]);
+const transform = <T,>(v: T | T[]) => asArray(v).map(Number);
 
-const router = useRouter();
-function update(searchQuerys: UrlParams) {
-  querys.value = searchQuerys;
-  let query = { ...router.currentRoute.value.query, ...querys.value };
-  query = omitBy(query, (query) => query === "");
-  delete query.page;
-
-  router.push({ query: query as unknown as Record<string, string> });
-  useEventBus(postListRestoreKey).emit(1);
-}
-
-const bus = useEventBus(searchRestoreKey);
-const restore = () => {
-  const query = router.currentRoute.value.query as UrlParams;
-  const search = (Array.isArray(query.search) ? query.search : [query.search])
-    .filter((v) => v !== null)
-    .join(" ");
-  const tags = (Array.isArray(query.tags) ? query.tags : [query.tags])
-    .map((value) => parseInt(value as string))
-    .filter((v) => !isNaN(v));
-  querys.value = { search, tags };
-  bus.emit(querys.value);
+const rawQuerys = {
+  search: useRouteQuery<string>("search", ""),
+  platforms: useRouteQuery("platforms", [], { transform }),
+  authors: useRouteQuery("authors", [], { transform }),
+  tags: useRouteQuery("tags", [], { transform }),
 };
 
-onMounted(() => {
-  restore();
-  addEventListener("popstate", restore);
-});
-onUnmounted(() => {
-  removeEventListener("popstate", restore);
+const querys = computed({
+  get: () => ({
+    search: rawQuerys.search.value,
+    platforms: rawQuerys.platforms.value,
+    authors: rawQuerys.authors.value,
+    tags: rawQuerys.tags.value,
+  }),
+  set: (value) => {
+    rawQuerys.search.value = value.search;
+    rawQuerys.platforms.value = value.platforms;
+    rawQuerys.authors.value = value.authors;
+    rawQuerys.tags.value = value.tags;
+  },
 });
 </script>
 
 <template>
   <div>
     <h1 class="text-4xl mb-4">Search</h1>
-    <SearchInput class="w-full pb-4" @search="update" />
-    <PostList url="/api/search" :query="querys ?? {}" />
+    <SearchInput v-model="querys" class="mb-4" />
+    <PostList url="/api/search" :query="querys" />
   </div>
 </template>
