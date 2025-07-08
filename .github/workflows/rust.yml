@@ -33,19 +33,6 @@ jobs:
           name: frontend-types
           path: bindings
 
-  update-version-by-tag:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: rustup toolchain install nightly --profile minimal --no-self-update
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo install cargo-v
-      - run: cargo v $(git describe --tags | grep -oP '^v?\K[0-9]+\.[0-9]+\.[0-9]+') -y\
-      - uses: actions/upload-artifact@v4
-        with:
-          name: cargo-version
-          path: Cargo.toml
-
   build-frontend:
     runs-on: ubuntu-latest
     needs: build-frontend-types
@@ -70,7 +57,7 @@ jobs:
           path: frontend/dist
 
   build-and-upload:
-    needs: [create-release, build-frontend, update-version-by-tag]
+    needs: [create-release, build-frontend]
     strategy:
       matrix:
         include:
@@ -83,17 +70,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/download-artifact@v4
         with:
           name: frontend
           path: frontend/dist
-      - uses: actions/download-artifact@v4
-        with:
-          name: cargo-version
-          path: Cargo.toml
       - run: rustup toolchain install nightly --profile minimal --no-self-update
       - uses: Swatinem/rust-cache@v2
+      - run: cargo install cargo-v
+      - run: cargo v $(git describe --tags | grep -oP '^v?\K[0-9]+\.[0-9]+\.[0-9]+') -y\
 
       - uses: taiki-e/upload-rust-binary-action@v1
         with:
