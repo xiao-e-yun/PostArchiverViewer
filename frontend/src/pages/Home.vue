@@ -45,7 +45,7 @@ watch(authorsEl, (el) => el && useLazyLoad().update());
     <PostList url="/api/posts" :controls="false" :limit="5" inline />
   </RouterLink>
 
-  <RouterLink to="/tags" class="block mb-8">
+  <RouterLink to="/collections" class="block mb-8">
     <div class="flex justify-between">
       <h1 class="text-base lg:text-2xl">
         <Folders :size="30" class="inline-block mr-2" />
