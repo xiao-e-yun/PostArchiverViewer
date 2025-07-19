@@ -105,7 +105,7 @@ const hasThumb = computed(() =>
           <CardContent class="px-3 py-2 max-sm:text-xs">
             <CardTitle class="p-0 text-xs md:text-lg capitalize">
               <span v-if="'platform' in item && item.platform">
-                {{ item.platform }}
+                {{ relations.platforms.get(item.platform)?.name || "Unknown" }}:
               </span>
               {{ (category === "tags" ? "#" : "") + item.name }}
             </CardTitle>
