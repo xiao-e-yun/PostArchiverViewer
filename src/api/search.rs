@@ -147,8 +147,7 @@ fn prepare_search<'a>(
     };
 
     let sql  = format!(
-        "SELECT id, title, updated, thumb FROM posts {} {} ORDER BY posts.updated DESC LIMIT ? OFFSET ?",
-        joins, filters
+        "SELECT id, title, updated, thumb FROM posts {joins} {filters} ORDER BY posts.updated DESC LIMIT ? OFFSET ?"
     );
 
     connection.prepare_cached(&sql)
@@ -166,7 +165,7 @@ fn prepare_search_total<'a>(
         format!("WHERE {}", filters.join(" AND "))
     };
 
-    let sql = format!("SELECT count() FROM posts {} {}", joins, filters);
+    let sql = format!("SELECT count() FROM posts {joins} {filters}");
 
     connection.prepare_cached(&sql)
 }

@@ -7,10 +7,10 @@ use axum::{
 use axum_extra::extract::Query;
 use chrono::{DateTime, Utc};
 use post_archiver::{
-    Author, Collection, Comment, Content, FileMeta, FileMetaId, PlatformId, Post, PostId, Tag,
+    Author, Collection, Comment, Content, FileMetaId, PlatformId, Post, PostId, Tag,
 };
 use rusqlite::OptionalExtension;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use ts_rs::TS;
 
 use crate::api::{
@@ -77,14 +77,6 @@ impl RequireRelations for PostResponse {
             .chain(self.collections.iter().flat_map(|c| c.thumb))
             .collect()
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(untagged)]
-#[ts(export)]
-pub enum ContentJson {
-    Text(String),
-    File(FileMeta),
 }
 
 pub async fn get_post_handler(

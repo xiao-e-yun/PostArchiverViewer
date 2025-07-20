@@ -49,7 +49,7 @@ pub struct Caches {
 }
 
 impl AppState {
-    pub fn manager(&self) -> std::sync::MutexGuard<PostArchiverManager> {
+    pub fn manager(&self) -> std::sync::MutexGuard<'_,PostArchiverManager> {
         self.manager.lock().unwrap()
     }
     fn full_text_search(&self) -> bool {
@@ -138,7 +138,7 @@ async fn get_redirect_api(
     let id: Option<u32> = stmt.query_row([&url], |row| row.get(0)).ok();
 
     let url = match id {
-        Some(id) => format!("/posts/{}", id),
+        Some(id) => format!("/posts/{id}"),
         None => url,
     };
 

@@ -20,11 +20,6 @@ pub fn frontend() -> Router<()> {
     }
 }
 
-pub enum FrontendService {
-    Proxy(ReverseProxy),
-    Static,
-}
-
 async fn static_handler(uri: Uri) -> impl IntoResponse {
     let path = uri.path().trim_start_matches('/');
 

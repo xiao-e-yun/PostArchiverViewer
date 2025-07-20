@@ -44,7 +44,7 @@ async fn main() {
 
     info!("# {} #", style("Post Archiver").green().bold());
     info!("==========================");
-    info!("Version {}", style(format!("v{}", VERSION)).green().bold());
+    info!("Version {}", style(format!("v{VERSION}")).green().bold());
     info!(
         "PostArchiver {}",
         style(format!("v{}", post_archiver::utils::VERSION))
@@ -83,7 +83,7 @@ async fn main() {
         port
     );
     if let Ok(addr) = local_ip() {
-        let url = format!("http://{}:{}", addr, port);
+        let url = format!("http://{addr}:{port}");
         info!(" {} {}", style("Network").green().bold(), url);
 
         let qrcode = QrCode::new(url.clone()).unwrap();
