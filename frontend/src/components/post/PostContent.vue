@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, inject } from "vue";
-import { postKey } from "./utils";
+import { computed, inject, provide } from "vue";
+import { postImagesKey, postKey } from "./utils";
 import type { FileMeta } from "@api/FileMeta";
 import { Marked } from "marked";
 import PostFile from "./PostFile.vue";
@@ -48,6 +48,16 @@ const update = throttle(() => lazyload.update(), 50, {
   leading: false,
   trailing: true,
 });
+
+provide(
+  postImagesKey,
+  computed(
+    () =>
+      contents.value.filter(
+        (content) => !isHtml(content) && content.mime.startsWith("image/"),
+      ) as FileMeta[],
+  ),
+);
 </script>
 
 <template>

@@ -29,7 +29,13 @@ const props = defineProps<
     aspect?: number;
   }
 >();
-const emits = defineEmits<DialogContentEmits>();
+
+type DialogEmits = DialogContentEmits & {
+  click: [event: MouseEvent];
+};
+const emits = defineEmits<DialogEmits>();
+
+const opened = defineModel<boolean>("opened", { default: false });
 
 const delegatedProps = computed(() => {
   const { class: _, ...delegated } = props;
@@ -104,8 +110,6 @@ const style = computed(() => ({
 
 const displayScale = computed(() => (scale.value * 100).toFixed());
 const [tooltipScale, toggleTooltipScale] = useToggle(true);
-
-const opened = ref(false);
 
 onBeforeRouteLeave(() => {
   const prevent = opened.value;

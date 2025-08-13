@@ -7,10 +7,17 @@ import DynamicImage from "../image/DynamicImage.vue";
 import { Badge } from "../ui/badge";
 import { ArrowDown, File } from "lucide-vue-next";
 import { getFileMetaPath } from "@/utils";
+import { computed, inject, ref } from "vue";
+import { postImagesKey } from "./utils";
 
-defineProps<{
+const props = defineProps<{
   file: FileMeta;
 }>();
+
+const images = inject(
+  postImagesKey,
+  computed(() => []),
+);
 
 function getStyleByFileExtra(extra: FileMeta["extra"]) {
   if (!hasExtra(extra)) return {};
@@ -28,6 +35,29 @@ function hasExtra(extra: FileMeta["extra"]) {
 function getExt(file: FileMeta) {
   return file.filename.slice(file.filename.indexOf("."));
 }
+
+const index = ref<FileMeta | null>(null);
+function switchImage(prev: boolean) {
+  const currentId = index.value ? index.value.id : props.file.id;
+  const currentIndex = images.value.findIndex((v) => v.id === currentId);
+  const next = images.value[currentIndex + (prev ? -1 : 1)];
+  if (!next) return;
+  index.value = next;
+}
+
+function onClickToSwitch(event: MouseEvent) {
+  const position =
+    event.offsetX / (event.currentTarget! as HTMLImageElement).clientWidth;
+  const prev = position < 0.5;
+  switchImage(prev);
+}
+
+function resetIndex(opened: boolean) {
+  if (!opened) return;
+  index.value = null;
+}
+
+const file = computed(() => index.value || props.file);
 </script>
 
 <template>
@@ -42,10 +72,12 @@ function getExt(file: FileMeta) {
     />
 
     <DialogImage
-      v-if="file.mime.startsWith('image')"
+      v-if="file.mime.startsWith('image/')"
       :aspect="getStyleByFileExtra(file.extra).aspectRatio"
       :src="getFileMetaPath(file)"
       class="p-0"
+      @update:opened="resetIndex"
+      @click="onClickToSwitch"
     >
       <DialogTrigger as="div">
         <DynamicImage
@@ -59,14 +91,14 @@ function getExt(file: FileMeta) {
     </DialogImage>
 
     <video
-      v-else-if="file.mime.startsWith('video')"
+      v-else-if="file.mime.startsWith('video/')"
       :src="getFileMetaPath(file)"
       class="lazy max-h-[80vh]"
       controls
     />
 
     <audio
-      v-else-if="file.mime.startsWith('audio')"
+      v-else-if="file.mime.startsWith('audio/')"
       :src="getFileMetaPath(file)"
       controls
     />
