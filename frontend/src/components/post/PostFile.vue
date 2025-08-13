@@ -56,8 +56,6 @@ function resetIndex(opened: boolean) {
   if (!opened) return;
   index.value = null;
 }
-
-const file = computed(() => index.value || props.file);
 </script>
 
 <template>
@@ -73,8 +71,8 @@ const file = computed(() => index.value || props.file);
 
     <DialogImage
       v-if="file.mime.startsWith('image/')"
-      :aspect="getStyleByFileExtra(file.extra).aspectRatio"
-      :src="getFileMetaPath(file)"
+      :aspect="getStyleByFileExtra((index || file).extra).aspectRatio"
+      :src="getFileMetaPath(index || file)"
       class="p-0"
       @update:opened="resetIndex"
       @click="onClickToSwitch"

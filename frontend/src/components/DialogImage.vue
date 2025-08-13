@@ -145,7 +145,7 @@ onBeforeRouteLeave(() => {
             }
           "
         >
-          <img :src="src" :style="style" />
+          <img :key="src" :src="src" :style="style" />
           <DialogTitle class="sr-only">{{ src }} of image</DialogTitle>
           <DialogDescription class="sr-only"></DialogDescription>
           <DialogClose
