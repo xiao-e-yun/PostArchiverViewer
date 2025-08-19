@@ -2,14 +2,14 @@
 import { computed, provide, toRef } from "vue";
 import { Separator } from "../ui/separator";
 import DynamicListControl from "./DynamicListControl.vue";
-import { getUrlWithParams, useRelations, type UrlParams } from "@/utils";
-import type { ListResponse } from "@api/ListResponse";
 import {
-  refThrottled,
-  useEventListener,
-  useFetch,
-  useLocalStorage,
-} from "@vueuse/core";
+  getUrlWithParams,
+  useFetchWithCache,
+  useRelations,
+  type UrlParams,
+} from "@/utils";
+import type { ListResponse } from "@api/ListResponse";
+import { refThrottled, useEventListener, useLocalStorage } from "@vueuse/core";
 
 import { dynamicListControlKey, dynamicPrePageKey } from "./utils";
 import { useRouteQuery } from "@vueuse/router";
@@ -51,9 +51,10 @@ const url = computed(
     }).href,
 );
 
-const { data, isFetching: pending } = useFetch(url, {
-  refetch: true,
-}).json<WithRelations<ListResponse<U>>>();
+console.log("DynamicList", url.value, props.query);
+const { data, isFetching: pending } = useFetchWithCache<
+  WithRelations<ListResponse<U>>
+>("dynamic-list", url);
 
 const list = computed(() => data.value?.list);
 

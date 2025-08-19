@@ -1,8 +1,15 @@
-import { toValue, type MaybeRefOrGetter } from "vue";
+import { toRefs, toValue, type MaybeRefOrGetter } from "vue";
 import type { FileMeta } from "@api/FileMeta";
 import type { WithRelations } from "@api/WithRelations";
 import { usePublicConfig } from "./api";
-import { reactiveComputed } from "@vueuse/core";
+import {
+  reactiveComputed,
+  useFetch,
+  useMemoize,
+  useSessionStorage,
+  type UseFetchReturn,
+} from "@vueuse/core";
+import { LRUMap } from "lru_map";
 
 export function useRelations<T>(
   data: MaybeRefOrGetter<WithRelations<T> | null | undefined>,
@@ -69,3 +76,39 @@ export function urlParamIntoString(param: undefined): undefined;
 export function urlParamIntoString(param: string[] | string | undefined) {
   return Array.isArray(param) ? param[0] : param;
 }
+
+const sessionStorageWithLRU: Record<string, LRUMap<string, unknown>> = {};
+export const useSessionStorageWithLRU = <Value>(
+  name: string,
+  limit: number,
+) => {
+  if (!sessionStorageWithLRU[name]) {
+    sessionStorageWithLRU[name] = useSessionStorage(
+      name,
+      new LRUMap<string, Value>(limit),
+      {
+        serializer: {
+          read: (raw) => new LRUMap<string, Value>(limit, JSON.parse(raw)),
+          write: (value) =>
+            JSON.stringify(
+              value.toJSON().map(({ key, value }) => [key, value]),
+            ),
+        },
+      },
+    ).value;
+  }
+  return sessionStorageWithLRU[name] as LRUMap<string, Value>;
+};
+
+export const useFetchWithCache = <T>(
+  category: string,
+  url: MaybeRefOrGetter<string>,
+  limit = 64,
+) => {
+  const cache = useSessionStorageWithLRU<UseFetchReturn<T>>(
+    "fetch." + category,
+    limit,
+  );
+  const fetch = useMemoize((url: string) => useFetch(url).json<T>(), { cache });
+  return toRefs(reactiveComputed(() => fetch(toValue(url))));
+};

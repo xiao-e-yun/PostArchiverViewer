@@ -5,9 +5,8 @@ import DynamicImage from "@/components/image/DynamicImage.vue";
 import PostList from "@/components/PostList.vue";
 import { Badge } from "@/components/ui/badge";
 import { useLazyLoad } from "@/lazyload";
-import { useRelations } from "@/utils";
+import { useFetchWithCache, useRelations } from "@/utils";
 import type { WithRelations } from "@api/WithRelations";
-import { useFetch } from "@vueuse/core";
 import { useRouteParams } from "@vueuse/router";
 import { ChevronLeft } from "lucide-vue-next";
 import { computed } from "vue";
@@ -20,9 +19,11 @@ const props = defineProps<CategoryPostsContext>();
 const id = useRouteParams("id", "0", { transform: Number });
 
 const url = computed(() => `/api/${props.category}/${id.value}`);
-const { data } = useFetch(url, { refetch: true }).json<
-  WithRelations<Category>
->();
+const { data } = useFetchWithCache<WithRelations<Category>>(
+  "category-meta",
+  url,
+);
+
 const relations = useRelations(data);
 </script>
 

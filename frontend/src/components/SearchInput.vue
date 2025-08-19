@@ -13,7 +13,7 @@ import { computed } from "vue";
 import { differenceBy, last } from "lodash";
 import { asyncComputed, refThrottled, useMemoize } from "@vueuse/core";
 import { fetch } from "ofetch";
-import { getUrlWithParams } from "@/utils";
+import { getUrlWithParams, useSessionStorageWithLRU } from "@/utils";
 import type { WithRelations } from "@api/WithRelations";
 import type { ListResponse } from "@api/ListResponse";
 import type { Category } from "@/api";
@@ -57,11 +57,14 @@ const syncCategory = (
   inputs[category]
     .filter((id) => !categories[category].some((v) => v.id === id))
     .map(async (id) =>
-      categories[category].push(await getCategory(category, id)),
+      categories[category].push((await getCategory(category, id)) as Category),
     );
 const getCategory = useMemoize(
   async (category: string, id: number) =>
     await (await fetch(`/api/${category}/${id}`)).json(),
+  {
+    cache: useSessionStorageWithLRU("search-category", 128),
+  },
 );
 
 const search = ref("");
