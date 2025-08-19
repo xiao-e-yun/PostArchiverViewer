@@ -83,19 +83,27 @@ export const useSessionStorageWithLRU = <Value>(
   limit: number,
 ) => {
   if (!sessionStorageWithLRU[name]) {
-    sessionStorageWithLRU[name] = useSessionStorage(
-      name,
-      new LRUMap<string, Value>(limit),
-      {
-        serializer: {
-          read: (raw) => new LRUMap<string, Value>(limit, JSON.parse(raw)),
-          write: (value) =>
-            JSON.stringify(
-              value.toJSON().map(({ key, value }) => [key, value]),
-            ),
-        },
+    const raw = sessionStorage.getItem(name);
+    let initial: LRUMap<string, Value>;
+    try {
+      initial = new LRUMap<string, Value>(
+        limit,
+        raw ? JSON.parse(raw) : undefined,
+      );
+    } catch {
+      initial = new LRUMap<string, Value>(limit);
+    }
+    sessionStorageWithLRU[name] = useSessionStorage(name, initial, {
+      serializer: {
+        read: (raw) => new LRUMap<string, Value>(limit, JSON.parse(raw)),
+        write: (value) =>
+          JSON.stringify(value.toJSON().map(({ key, value }) => [key, value])),
       },
-    ).value;
+      /**
+       * @see https://github.com/vueuse/vueuse/issues/4767
+       */
+      flush: "sync",
+    }).value;
   }
   return sessionStorageWithLRU[name] as LRUMap<string, Value>;
 };
