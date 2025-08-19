@@ -13,7 +13,7 @@ import { computed } from "vue";
 import { differenceBy, last } from "lodash";
 import { asyncComputed, refThrottled, useMemoize } from "@vueuse/core";
 import { fetch } from "ofetch";
-import { getUrlWithParams, fetchCache } from "@/utils";
+import { getUrlWithParams } from "@/utils";
 import type { WithRelations } from "@api/WithRelations";
 import type { ListResponse } from "@api/ListResponse";
 import type { Category } from "@/api";
@@ -56,16 +56,13 @@ const syncCategory = (
   inputs &&
   inputs[category]
     .filter((id) => !categories[category].some((v) => v.id === id))
-    .map(async (id) =>
-      categories[category].push((await getCategory(category, id)) as Category),
+    .forEach(async (id) =>
+      categories[category].push(
+        await fetch(`/api/${category}/${id}`).then(
+          (res) => res.json() as Promise<Category>,
+        ),
+      ),
     );
-const getCategory = useMemoize(
-  async (category: string, id: number) =>
-    await (await fetch(`/api/${category}/${id}`)).json(),
-  {
-    cache: fetchCache("search-category", 128),
-  },
-);
 
 const search = ref("");
 const categories = reactive<{
@@ -115,6 +112,7 @@ const hint = refThrottled(
     const keywordWithPrefix = last(search.value.split(" ")) ?? "";
     const prefix = keywordWithPrefix[0];
     const keyword = keywordWithPrefix.slice(1);
+    console.log("hint", keywordWithPrefix, prefix, keyword);
 
     const category = prefixCategories[prefix as keyof typeof prefixCategories];
 
@@ -212,7 +210,9 @@ const help = ref(false);
             </template>
 
             <ComboboxEmpty class="text-muted-foreground">
-              <p v-if="categoryHints?.list">Loading {{ hint.category }} ...</p>
+              <p v-if="categoryHints?.list === undefined">
+                Loading {{ hint.category }} ...
+              </p>
               <template v-else>
                 <Badge variant="secondary">
                   {{ hint.prefix + hint.keyword }}
