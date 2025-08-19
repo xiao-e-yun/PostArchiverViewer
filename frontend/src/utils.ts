@@ -113,6 +113,7 @@ class FetchCache<T> extends LRUMap<string, UseFetchReturn<T>> {
     this.saveToSession();
     return result;
   }
+
   delete(key: string) {
     const result = super.delete(key);
     this.saveToSession();
@@ -131,6 +132,7 @@ class FetchCache<T> extends LRUMap<string, UseFetchReturn<T>> {
 
     const data = super
       .toJSON()
+      .filter(({ value }) => !!value.data.value)
       .map(({ key, value }) => [key, value.data.value]) as [string, T][];
     sessionStorage.setItem(this.sessionName, JSON.stringify(data));
   }
@@ -150,7 +152,6 @@ export const useFetchWithCache = <T>(
       computedWithControl<UseFetchReturn<T>, string>(
         () => toValue(url),
         (prev) => {
-          console.log("useFetchWithCache", category, "fetching", prev);
           prevResult = prev;
           return fetch(toValue(url));
         },

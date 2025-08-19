@@ -112,7 +112,6 @@ const hint = refThrottled(
     const keywordWithPrefix = last(search.value.split(" ")) ?? "";
     const prefix = keywordWithPrefix[0];
     const keyword = keywordWithPrefix.slice(1);
-    console.log("hint", keywordWithPrefix, prefix, keyword);
 
     const category = prefixCategories[prefix as keyof typeof prefixCategories];
 
