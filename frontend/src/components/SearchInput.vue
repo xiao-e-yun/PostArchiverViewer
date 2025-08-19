@@ -13,7 +13,7 @@ import { computed } from "vue";
 import { differenceBy, last } from "lodash";
 import { asyncComputed, refThrottled, useMemoize } from "@vueuse/core";
 import { fetch } from "ofetch";
-import { getUrlWithParams, useSessionStorageWithLRU } from "@/utils";
+import { getUrlWithParams, fetchCache } from "@/utils";
 import type { WithRelations } from "@api/WithRelations";
 import type { ListResponse } from "@api/ListResponse";
 import type { Category } from "@/api";
@@ -63,7 +63,7 @@ const getCategory = useMemoize(
   async (category: string, id: number) =>
     await (await fetch(`/api/${category}/${id}`)).json(),
   {
-    cache: useSessionStorageWithLRU("search-category", 128),
+    cache: fetchCache("search-category", 128),
   },
 );
 

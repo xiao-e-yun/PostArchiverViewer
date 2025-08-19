@@ -1,12 +1,14 @@
-import { toRefs, toValue, type MaybeRefOrGetter } from "vue";
+import { shallowRef, toRefs, toValue, type MaybeRefOrGetter } from "vue";
 import type { FileMeta } from "@api/FileMeta";
 import type { WithRelations } from "@api/WithRelations";
 import { usePublicConfig } from "./api";
 import {
+  computedWithControl,
   reactiveComputed,
+  toReactive,
+  until,
   useFetch,
   useMemoize,
-  useSessionStorage,
   type UseFetchReturn,
 } from "@vueuse/core";
 import { LRUMap } from "lru_map";
@@ -77,38 +79,75 @@ export function urlParamIntoString(param: string[] | string | undefined) {
   return Array.isArray(param) ? param[0] : param;
 }
 
-const sessionStorageWithLRU: Record<string, LRUMap<string, unknown>> = {};
-export const useSessionStorageWithLRU = <Value>(
-  name: string,
-  limit: number,
-) => {
-  if (!sessionStorageWithLRU[name]) {
-    sessionStorageWithLRU[name] = useSessionStorage(
-      name,
-      new LRUMap<string, Value>(limit),
+const fetchCaches = {} as Record<string, FetchCache<unknown>>;
+export const fetchCache = <T>(name: string, limit: number) =>
+  (fetchCaches[name] ??= new FetchCache<T>(
+    `fetch.${name}`,
+    limit,
+  )) as FetchCache<T>;
+
+class FetchCache<T> extends LRUMap<string, UseFetchReturn<T>> {
+  constructor(
+    public sessionName: string,
+    limit: number,
+  ) {
+    const rawData = sessionStorage.getItem(sessionName) ?? "[]";
+    const data = (JSON.parse(rawData) as [string, T][]).map(([key, data]) => [
+      key,
       {
-        serializer: {
-          read: (raw) => new LRUMap<string, Value>(limit, JSON.parse(raw)),
-          write: (value) =>
-            JSON.stringify(
-              value.toJSON().map(({ key, value }) => [key, value]),
-            ),
-        },
+        // Fake type assertion to match UseFetchReturn<T>
+        isFinished: shallowRef(true),
+        isFetching: shallowRef(false),
+        statusCode: shallowRef(200),
+        error: shallowRef(null),
+        canAbort: shallowRef(false),
+        aborted: shallowRef(false),
+        data: shallowRef(data),
       },
-    ).value;
+    ]) as unknown as [string, UseFetchReturn<T>][];
+    super(limit, data);
   }
-  return sessionStorageWithLRU[name] as LRUMap<string, Value>;
-};
+  set(key: string, value: UseFetchReturn<T>) {
+    const result = super.set(key, value);
+    this.saveToSession();
+    return result;
+  }
+  delete(key: string) {
+    const result = super.delete(key);
+    this.saveToSession();
+    return result;
+  }
+
+  clear() {
+    const result = super.clear();
+    sessionStorage.removeItem(this.sessionName);
+    return result;
+  }
+
+  async saveToSession() {
+    for (const value of this.values() as unknown as UseFetchReturn<T>[])
+      await until(value.isFinished).toBe(true);
+
+    const data = super
+      .toJSON()
+      .map(({ key, value }) => [key, value.data.value]) as [string, T][];
+    sessionStorage.setItem(this.sessionName, JSON.stringify(data));
+  }
+}
 
 export const useFetchWithCache = <T>(
   category: string,
   url: MaybeRefOrGetter<string>,
   limit = 64,
 ) => {
-  const cache = useSessionStorageWithLRU<UseFetchReturn<T>>(
-    "fetch." + category,
-    limit,
-  );
+  const cache = fetchCache<T>(category, limit);
   const fetch = useMemoize((url: string) => useFetch(url).json<T>(), { cache });
-  return toRefs(reactiveComputed(() => fetch(toValue(url))));
+  return toRefs(
+    toReactive(
+      computedWithControl(
+        () => toValue(url),
+        () => fetch(toValue(url)),
+      ),
+    ),
+  );
 };
