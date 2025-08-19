@@ -12,6 +12,7 @@ import {
   type UseFetchReturn,
 } from "@vueuse/core";
 import { LRUMap } from "lru_map";
+import { computed } from "vue";
 
 export function useRelations<T>(
   data: MaybeRefOrGetter<WithRelations<T> | null | undefined>,
@@ -142,12 +143,23 @@ export const useFetchWithCache = <T>(
 ) => {
   const cache = fetchCache<T>(category, limit);
   const fetch = useMemoize((url: string) => useFetch(url).json<T>(), { cache });
-  return toRefs(
+
+  let prevResult: UseFetchReturn<T> | undefined = undefined;
+  const result = toRefs(
     toReactive(
-      computedWithControl(
+      computedWithControl<UseFetchReturn<T>, string>(
         () => toValue(url),
-        () => fetch(toValue(url)),
+        (prev) => {
+          console.log("useFetchWithCache", category, "fetching", prev);
+          prevResult = prev;
+          return fetch(toValue(url));
+        },
       ),
     ),
   );
+
+  return {
+    ...result,
+    data: computed(() => result.data.value ?? prevResult?.data.value),
+  };
 };
