@@ -80,7 +80,12 @@ pub struct SearchQuery {
     platforms: Vec<PlatformId>,
 }
 
-type SearchContext = (Vec<&'static str>, Vec<&'static str>, Vec<String>);
+type SearchContext = (
+    Vec<&'static str>,
+    Vec<&'static str>,
+    Vec<&'static str>,
+    Vec<String>,
+);
 pub async fn get_search_api(
     Query(pagination): Query<Pagination>,
     Query(query): Query<SearchQuery>,
@@ -89,7 +94,7 @@ pub async fn get_search_api(
     let manager = state.manager();
     let conn = manager.conn();
 
-    let mut context: SearchContext = (vec![], vec![], vec![]);
+    let mut context: SearchContext = (vec![], vec![], vec![], vec![]);
     bind_search(&mut context, state.full_text_search(), &query.search);
     bind_relation(
         &mut context,
@@ -99,10 +104,10 @@ pub async fn get_search_api(
         &query.platforms,
     );
 
-    let mut stmt = prepare_search(&context, conn).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let mut stmt = prepare_search(&context, conn).unwrap();
 
     let pagination = pagination.params().map(|p| p.to_string());
-    let params = params_from_iter(context.2.iter().chain(pagination.iter()));
+    let params = params_from_iter(context.3.iter().chain(pagination.iter()));
 
     let rows = stmt
         .query_map(params.clone(), PostPreview::from_row)
@@ -112,16 +117,17 @@ pub async fn get_search_api(
         .collect::<Result<Vec<_>, _>>()
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let params = params_from_iter(context.2.iter());
+    let params = params_from_iter(context.3.iter());
     let total = match state.caches.search.get(&query) {
         Some(cached) => cached,
         None => {
-            let mut stmt = prepare_search_total(&context, conn)
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            let mut stmt = prepare_search_total(&context, conn).unwrap();
 
-            let total = stmt
-                .query_row(params, |row| row.get(0))
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            let total = match stmt.query_row(params, |row| row.get(0)) {
+                Ok(total) => total,
+                Err(rusqlite::Error::QueryReturnedNoRows) => 0,
+                Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+            };
 
             state.caches.search.insert(query, total);
 
@@ -135,7 +141,7 @@ pub async fn get_search_api(
 }
 
 fn prepare_search<'a>(
-    (joins, filters, _params): &SearchContext,
+    (joins, filters, havings, _params): &SearchContext,
     connection: &'a Connection,
 ) -> Result<CachedStatement<'a>, rusqlite::Error> {
     let joins = joins.join(" ");
@@ -146,15 +152,21 @@ fn prepare_search<'a>(
         format!("WHERE {}", filters.join(" AND "))
     };
 
+    let havings = if havings.is_empty() {
+        String::new()
+    } else {
+        format!("GROUP BY posts.id HAVING {}", havings.join(" AND "))
+    };
+
     let sql  = format!(
-        "SELECT id, title, updated, thumb FROM posts {joins} {filters} ORDER BY posts.updated DESC LIMIT ? OFFSET ?"
+        "SELECT id, title, updated, thumb FROM posts {joins} {filters} {havings} ORDER BY posts.updated DESC LIMIT ? OFFSET ?"
     );
 
     connection.prepare_cached(&sql)
 }
 
 fn prepare_search_total<'a>(
-    (joins, filters, _params): &SearchContext,
+    (joins, filters, havings, _params): &SearchContext,
     connection: &'a Connection,
 ) -> Result<CachedStatement<'a>, rusqlite::Error> {
     let joins = joins.join(" ");
@@ -165,43 +177,81 @@ fn prepare_search_total<'a>(
         format!("WHERE {}", filters.join(" AND "))
     };
 
-    let sql = format!("SELECT count() FROM posts {joins} {filters}");
+    let havings = if havings.is_empty() {
+        String::new()
+    } else {
+        format!("GROUP BY posts.id HAVING {}", havings.join(" AND "))
+    };
+
+    let sql =
+        format!("SELECT count() FROM (SELECT 0 FROM posts {joins} {filters} {havings})");
 
     connection.prepare_cached(&sql)
 }
 
 fn bind_relation(
-    (joins, filters, params): &mut SearchContext,
+    (joins, filters, havings, params): &mut SearchContext,
     authors: &[AuthorId],
     tags: &[TagId],
     collections: &[CollectionId],
     platforms: &[PlatformId],
 ) {
+    let mut havings_with_params = vec![];
+
     if !authors.is_empty() {
         joins.push("JOIN author_posts ON posts.id = author_posts.post");
         filters.push("author_posts.author IN (SELECT value FROM json_each(?))");
         params.push(serde_json::to_string(&authors).unwrap());
+        if authors.len() > 1 {
+            havings_with_params.push((
+                "COUNT(DISTINCT author_posts.author) == CAST(? AS INTEGER)",
+                authors.len(),
+            ));
+        }
     }
 
     if !tags.is_empty() {
         joins.push("JOIN post_tags ON posts.id = post_tags.post");
         filters.push("post_tags.tag IN (SELECT value FROM json_each(?))");
         params.push(serde_json::to_string(&tags).unwrap());
+        if tags.len() > 1 {
+            havings_with_params.push((
+                "COUNT(DISTINCT post_tags.tag) == CAST(? AS INTEGER)",
+                tags.len(),
+            ));
+        }
     }
 
     if !collections.is_empty() {
         joins.push("JOIN collection_posts ON posts.id = collection_posts.post");
         filters.push("collection_posts.collection IN (SELECT value FROM json_each(?))");
         params.push(serde_json::to_string(&collections).unwrap());
+        if collections.len() > 1 {
+            havings_with_params.push((
+                "COUNT(DISTINCT collection_posts.collection) == CAST(? AS INTEGER)",
+                collections.len(),
+            ));
+        }
     }
 
     if !platforms.is_empty() {
         filters.push("posts.platform IN (SELECT value FROM json_each(?))");
         params.push(serde_json::to_string(&platforms).unwrap());
     }
+
+    if !havings_with_params.is_empty() {
+        for (condition, count) in havings_with_params {
+            havings.push(condition);
+            params.push(count.to_string());
+        }
+    }
 }
 
-fn bind_search((joins, filters, params): &mut SearchContext, full_text_search: bool, search: &str) {
+fn bind_search(
+    (joins, filters, _havings, params): &mut SearchContext,
+    full_text_search: bool,
+    search: &str,
+) {
     if search.is_empty() {
         return;
     }
