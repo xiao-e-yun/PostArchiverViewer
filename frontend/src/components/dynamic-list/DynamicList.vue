@@ -51,7 +51,6 @@ const url = computed(
     }).href,
 );
 
-console.log("DynamicList", url.value, props.query);
 const { data, isFetching: pending } = useFetchWithCache<
   WithRelations<ListResponse<U>>
 >("dynamic-list", url);
