@@ -48,7 +48,7 @@ function updatePageIndex(page: number) {
 
 <template>
   <div class="flex flex-row-reverse justify-between gap-2 flex-nowrap">
-    <div class="flex gap-2 flex-wrap">
+    <div class="flex gap-2 flex-wrap justify-end">
       <Select v-model="postsPrePageSelectValue">
         <SelectTrigger class="w-32">
           <LayoutListIcon />
@@ -97,9 +97,8 @@ function updatePageIndex(page: number) {
       </Pagination>
     </div>
 
-    <div v-if="pending" class="flex items-center gap-2 align-bottom text-lg">
+    <div v-if="pending" class="w-0 my-auto -z-10">
       <LoaderCircle class="animate-spin h-auto aspect-square" :size="32" />
-      <span class="max-sm:hidden">Loading...</span>
     </div>
   </div>
 </template>
