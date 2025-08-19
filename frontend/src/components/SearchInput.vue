@@ -209,10 +209,13 @@ const help = ref(false);
             </template>
 
             <ComboboxEmpty class="text-muted-foreground">
-              <Badge variant="secondary">
-                {{ hint.prefix + hint.keyword }}
-              </Badge>
-              no found.
+              <p v-if="categoryHints?.list">Loading {{ hint.category }} ...</p>
+              <template v-else>
+                <Badge variant="secondary">
+                  {{ hint.prefix + hint.keyword }}
+                </Badge>
+                not found
+              </template>
             </ComboboxEmpty>
           </ComboboxList>
         </Combobox>
