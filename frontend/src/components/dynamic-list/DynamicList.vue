@@ -72,8 +72,9 @@ const total = (() => {
 })();
 
 provide(dynamicListControlKey, {
-  itemsPrePage: itemsPrePage,
+  itemsPrePage,
   pageIndex,
+  pending,
   total,
 });
 

@@ -7,6 +7,7 @@ export const dynamicPrePageKey =
 export interface DynamicListControl {
   itemsPrePage: Ref<number | undefined>;
   pageIndex: Ref<number>;
+  pending: Ref<boolean>;
   total: Ref<number>;
 }
 

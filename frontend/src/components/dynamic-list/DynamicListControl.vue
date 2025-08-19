@@ -10,7 +10,7 @@ import {
   PaginationNext,
   PaginationPrev,
 } from "../ui/pagination";
-import { LayoutListIcon } from "lucide-vue-next";
+import { LayoutListIcon, LoaderCircle } from "lucide-vue-next";
 import { dynamicListControlKey, useDynamicListControlUtils } from "./utils";
 import {
   SelectValue,
@@ -22,16 +22,14 @@ import {
 import { Button } from "../ui/button";
 import { useRouter } from "vue-router";
 
-const {
-  total,
-  pageIndex,
-  itemsPrePage: postsPrePage,
-} = inject(dynamicListControlKey)!;
+const { total, pending, pageIndex, itemsPrePage } = inject(
+  dynamicListControlKey,
+)!;
 
 const { smallMode, siblingCount } = useDynamicListControlUtils();
 const postsPrePageSelectValue = computed({
-  get: () => postsPrePage.value?.toString(),
-  set: (value: string) => (postsPrePage.value = parseInt(value)),
+  get: () => itemsPrePage.value?.toString(),
+  set: (value: string) => (itemsPrePage.value = parseInt(value)),
 });
 
 const router = useRouter();
@@ -49,52 +47,59 @@ function updatePageIndex(page: number) {
 </script>
 
 <template>
-  <div class="flex justify-end gap-2 flex-wrap">
-    <Select v-model="postsPrePageSelectValue">
-      <SelectTrigger class="w-32">
-        <LayoutListIcon />
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="20">20</SelectItem>
-        <SelectItem value="50">50</SelectItem>
-        <SelectItem value="100">100</SelectItem>
-      </SelectContent>
-    </Select>
+  <div class="flex flex-row-reverse justify-between gap-2 flex-nowrap">
+    <div class="flex gap-2 flex-wrap">
+      <Select v-model="postsPrePageSelectValue">
+        <SelectTrigger class="w-32">
+          <LayoutListIcon />
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="20">20</SelectItem>
+          <SelectItem value="50">50</SelectItem>
+          <SelectItem value="100">100</SelectItem>
+        </SelectContent>
+      </Select>
 
-    <Pagination
-      v-slot="{ page }"
-      :page="pageIndex"
-      :total="total"
-      :sibling-count="siblingCount"
-      :show-edges="!smallMode"
-      :items-per-page="postsPrePage"
-      @update:page="updatePageIndex"
-    >
-      <PaginationList v-slot="{ items }" class="flex items-center gap-1">
-        <PaginationFirst />
-        <PaginationPrev />
+      <Pagination
+        v-slot="{ page }"
+        :page="pageIndex"
+        :total="total"
+        :sibling-count="siblingCount"
+        :show-edges="!smallMode"
+        :items-per-page="itemsPrePage"
+        @update:page="updatePageIndex"
+      >
+        <PaginationList v-slot="{ items }" class="flex items-center gap-1">
+          <PaginationFirst />
+          <PaginationPrev />
 
-        <template v-for="(item, index) in items">
-          <PaginationListItem
-            v-if="item.type === 'page'"
-            :key="index"
-            :value="item.value"
-            as-child
-          >
-            <Button
-              class="w-10 h-10 p-0"
-              :variant="item.value === page ? 'default' : 'outline'"
+          <template v-for="(item, index) in items">
+            <PaginationListItem
+              v-if="item.type === 'page'"
+              :key="index"
+              :value="item.value"
+              as-child
             >
-              {{ item.value }}
-            </Button>
-          </PaginationListItem>
-          <PaginationEllipsis v-else :key="item.type" :index="index" />
-        </template>
+              <Button
+                class="w-10 h-10 p-0"
+                :variant="item.value === page ? 'default' : 'outline'"
+              >
+                {{ item.value }}
+              </Button>
+            </PaginationListItem>
+            <PaginationEllipsis v-else :key="item.type" :index="index" />
+          </template>
 
-        <PaginationNext />
-        <PaginationLast />
-      </PaginationList>
-    </Pagination>
+          <PaginationNext />
+          <PaginationLast />
+        </PaginationList>
+      </Pagination>
+    </div>
+
+    <div v-if="pending" class="flex items-center gap-2 align-bottom text-lg">
+      <LoaderCircle class="animate-spin h-auto aspect-square" :size="32" />
+      <span class="max-sm:hidden">Loading...</span>
+    </div>
   </div>
 </template>
