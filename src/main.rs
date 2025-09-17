@@ -1,7 +1,6 @@
 mod api;
 pub mod config;
 pub mod frontend;
-pub mod images;
 pub mod resource;
 
 use api::get_api_router;
@@ -10,7 +9,7 @@ use config::Config;
 use console::style;
 use dotenv::dotenv;
 use frontend::frontend;
-use images::get_images_router;
+use image_provider::get_images_router;
 use local_ip_address::local_ip;
 use qrcode::{render::unicode, QrCode};
 use resource::get_resource_router;
@@ -57,7 +56,7 @@ async fn main() {
         return;
     }
 
-    let images_router = get_images_router(&config);
+    let images_router = get_images_router(config.path.clone(),config.resize.clone());
     let resource_router = get_resource_router(&config);
     let api_router = get_api_router(&config);
 
