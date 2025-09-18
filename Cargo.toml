@@ -51,4 +51,4 @@ qrcode = { version = "0.14.1", default-features = false }
 console = "0.15.11"
 time = "0.3.41"
 mini-moka = "0.10.3"
-image-provider = "0.0.4"
+image-provider = "0.1.0"

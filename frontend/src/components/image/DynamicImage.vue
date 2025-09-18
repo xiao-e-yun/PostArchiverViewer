@@ -27,6 +27,7 @@ const src = computed(() => {
     ? parseInt(props.dpr.toString())
     : window.devicePixelRatio;
 
+  url.searchParams.set("ce", "");
   if (dpr !== 1) url.searchParams.set("dpr", dpr.toString());
   if (props.format) url.searchParams.set("output", props.format);
 

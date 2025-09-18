@@ -1580,9 +1580,9 @@ dependencies = [
 
 [[package]]
 name = "image-provider"
-version = "0.0.4"
+version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "653205f9a0d796c23b478f0f78290b4a232b280faadee6eaeee329222fe2c0e7"
+checksum = "ba4c42f393906a95f04a722c3c6104826a9e683f95d34ec46ad63444f2bf84cc"
 dependencies = [
  "axum",
  "axum-extra",
