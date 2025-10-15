@@ -34,6 +34,6 @@ const querys = computed({
   <div>
     <h1 class="text-4xl mb-4">Search</h1>
     <SearchInput v-model="querys" class="mb-4" />
-    <PostList url="/api/search" :query="querys" />
+    <PostList url="/api/posts" :query="querys" />
   </div>
 </template>

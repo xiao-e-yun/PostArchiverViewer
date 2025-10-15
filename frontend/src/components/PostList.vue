@@ -11,7 +11,6 @@ import { Badge } from "./ui/badge";
 
 const props = withDefaults(
   defineProps<{
-    url: string;
     query?: UrlParams;
     controls?: boolean;
     limit?: number;
@@ -27,7 +26,11 @@ const props = withDefaults(
 
 <template>
   <!-- @vue-generic {import("@api/PostPreview").PostPreview} -->
-  <DynamicList v-slot="{ list, itemPrePage, relations }" v-bind="props">
+  <DynamicList
+    v-slot="{ list, itemPrePage, relations }"
+    url="/api/posts"
+    v-bind="props"
+  >
     <div
       class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4"
       :class="{ 'inline-list': props.inline }"

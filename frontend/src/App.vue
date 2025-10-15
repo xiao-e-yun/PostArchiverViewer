@@ -24,9 +24,7 @@ const links = [
           >Post Archiver</span
         >
       </RouterLink>
-      <div
-        class="flex w-full items-center gap-4 md:ml-auto md:gap-2 lg:gap-4 justify-end"
-      >
+      <div class="flex w-full items-center gap-4 md:ml-auto justify-end">
         <RouterLink
           v-for="{ name, path, icon } in links"
           :key="path"

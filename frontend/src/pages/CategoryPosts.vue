@@ -62,5 +62,5 @@ const relations = useRelations(data);
       </div>
     </template>
   </div>
-  <PostList :url="`${url}/posts`" />
+  <PostList :query="{ [category]: id }" />
 </template>
