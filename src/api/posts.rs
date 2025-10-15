@@ -103,6 +103,7 @@ pub async fn list_posts_handler(
     let conn = manager.conn();
 
     let mut context: SearchContext = (vec![], vec![], vec![], vec![]);
+    
     bind_search(&mut context, state.full_text_search(), &query.search);
     bind_relation(
         &mut context,
@@ -126,7 +127,8 @@ pub async fn list_posts_handler(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let params = params_from_iter(context.3.iter());
-    let total = match state.caches.posts.lock().unwrap().cache_get(&query) {
+    let mut cache = state.caches.posts.lock().unwrap();
+    let total = match cache.cache_get(&query) {
         Some(cached) => *cached,
         None => {
             let mut stmt = prepare_search_total(&context, conn).unwrap();
@@ -137,7 +139,7 @@ pub async fn list_posts_handler(
                 Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
             };
 
-            state.caches.posts.lock().unwrap().cache_set(query, total);
+            cache.cache_set(query, total);
 
             total
         }

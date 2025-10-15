@@ -82,12 +82,13 @@ pub trait Category: RequireRelations + Serialize + Debug + TS + Sized + 'static 
             return stmt.query_row([search], |row| row.get(0));
         }
 
-        if let Some(cached) = state
+        let mut cache = state
             .caches
             .tables
             .lock()
-            .unwrap()
-            .cache_get(&Self::TABLE_NAME)
+            .unwrap();
+
+        if let Some(cached) = cache.cache_get(&Self::TABLE_NAME)
         {
             return Ok(*cached);
         }
@@ -97,12 +98,7 @@ pub trait Category: RequireRelations + Serialize + Debug + TS + Sized + 'static 
             .prepare_cached(&format!("SELECT COUNT() FROM {}", Self::TABLE_NAME))?;
 
         let total = stmt.query_row([], |row| row.get(0))?;
-        state
-            .caches
-            .tables
-            .lock()
-            .unwrap()
-            .cache_set(Self::TABLE_NAME, total);
+        cache.cache_set(Self::TABLE_NAME, total);
 
         Ok(total)
     }

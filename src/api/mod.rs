@@ -85,7 +85,6 @@ pub fn get_api_router(config: &Config) -> Router<()> {
     let router = Author::wrap_category_route(router);
     let router = Platform::wrap_category_route(router);
     let router = Collection::wrap_category_route(router);
-    let router = Collection::wrap_category_route(router);
 
     router.fallback(StatusCode::NOT_FOUND).with_state(state)
 }
