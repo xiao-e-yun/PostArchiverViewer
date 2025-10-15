@@ -17,12 +17,8 @@ use axum::{
     routing::get,
     Json, Router,
 };
-use category::CategoryPostsApiRouter;
-use mini_moka::sync::Cache;
-use post_archiver::{
-    manager::PostArchiverManager, Author, AuthorId, Collection, CollectionId, Platform, PlatformId,
-    Tag, TagId,
-};
+use cached::{TimedCache, TimedSizedCache};
+use post_archiver::{manager::PostArchiverManager, Author, Collection, Platform, Tag};
 use search::{get_search_api, SearchQuery};
 use serde::Deserialize;
 use summary::get_summary_api;
@@ -32,24 +28,20 @@ use crate::config::{Config, PublicConfig};
 #[derive(Clone)]
 pub struct AppState {
     manager: Arc<Mutex<PostArchiverManager>>,
+    caches: Arc<Caches>,
     config: Config,
-    caches: Caches,
     #[cfg(feature = "full-text-search")]
     full_text_search: bool,
 }
 
 #[derive(Clone, Debug)]
 pub struct Caches {
-    pub tables: Cache<&'static str, usize>,
-    pub tags: Cache<TagId, usize>,
-    pub authors: Cache<AuthorId, usize>,
-    pub platforms: Cache<PlatformId, usize>,
-    pub collections: Cache<CollectionId, usize>,
-    pub search: Cache<SearchQuery, usize>,
+    pub tables: TimedSizedCache<&'static str, usize>,
+    pub posts: TimedSizedCache<SearchQuery, usize>,
 }
 
 impl AppState {
-    pub fn manager(&self) -> std::sync::MutexGuard<'_,PostArchiverManager> {
+    pub fn manager(&self) -> std::sync::MutexGuard<'_, PostArchiverManager> {
         self.manager.lock().unwrap()
     }
     fn full_text_search(&self) -> bool {
@@ -73,12 +65,8 @@ pub fn get_api_router(config: &Config) -> Router<()> {
     let manager = Arc::new(Mutex::new(manager));
     let state = AppState {
         caches: Caches {
-            tables: Cache::new(5),
-            platforms: Cache::new(4),
-            tags: Cache::new(8),
-            collections: Cache::new(8),
-            authors: Cache::new(16),
-            search: Cache::new(32),
+            tables: TimedCache::with_lifespan(60 * 60 * 12),
+            posts: TimedSizedCache::with_size_and_lifespan(256, 60 * 60 * 12),
         },
         config: config.clone(),
         manager,
