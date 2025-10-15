@@ -56,7 +56,7 @@ async fn main() {
         return;
     }
 
-    let images_router = get_images_router(config.path.clone(),config.resize.clone());
+    let images_router = get_images_router(config.path.clone(), config.resize.clone());
     let resource_router = get_resource_router(&config);
     let api_router = get_api_router(&config);
 

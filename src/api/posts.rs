@@ -1,5 +1,6 @@
-use axum::{extract::State, http::StatusCode, Json};
+use axum::{extract::State, http::StatusCode, routing::get, Json, Router};
 use axum_extra::extract::Query;
+use cached::Cached;
 use post_archiver::{AuthorId, CollectionId, PlatformId, TagId};
 use rusqlite::{params_from_iter, CachedStatement, Connection};
 use serde::{Deserialize, Serialize};
@@ -10,16 +11,23 @@ use crate::config::Config;
 use tracing::info;
 
 use super::{
+    post::get_post_handler,
     relation::WithRelations,
     utils::{ListResponse, Pagination, PostPreview},
     AppState,
 };
 
+pub fn wrap_posts_route(router: Router<AppState>) -> Router<AppState> {
+    router
+        .route("/posts", get(list_posts_handler))
+        .route("/posts/{id}", get(get_post_handler))
+}
+
 #[cfg(feature = "full-text-search")]
 use post_archiver::manager::PostArchiverManager;
 
 #[cfg(feature = "full-text-search")]
-pub fn sync_search_api(config: &Config, manager: &mut PostArchiverManager) -> bool {
+pub fn sync_text_search(config: &Config, manager: &mut PostArchiverManager) -> bool {
     let old_status = manager
         .get_feature("PostArchiverViewer:SearchFullText")
         .unwrap_or(0)
@@ -86,7 +94,7 @@ type SearchContext = (
     Vec<&'static str>,
     Vec<String>,
 );
-pub async fn get_search_api(
+pub async fn list_posts_handler(
     Query(pagination): Query<Pagination>,
     Query(query): Query<SearchQuery>,
     State(state): State<AppState>,
@@ -118,8 +126,8 @@ pub async fn get_search_api(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let params = params_from_iter(context.3.iter());
-    let total = match state.caches.search.get(&query) {
-        Some(cached) => cached,
+    let total = match state.caches.posts.lock().unwrap().cache_get(&query) {
+        Some(cached) => *cached,
         None => {
             let mut stmt = prepare_search_total(&context, conn).unwrap();
 
@@ -129,7 +137,7 @@ pub async fn get_search_api(
                 Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
             };
 
-            state.caches.search.insert(query, total);
+            state.caches.posts.lock().unwrap().cache_set(query, total);
 
             total
         }
@@ -183,8 +191,7 @@ fn prepare_search_total<'a>(
         format!("GROUP BY posts.id HAVING {}", havings.join(" AND "))
     };
 
-    let sql =
-        format!("SELECT count() FROM (SELECT 0 FROM posts {joins} {filters} {havings})");
+    let sql = format!("SELECT count() FROM (SELECT 0 FROM posts {joins} {filters} {havings})");
 
     connection.prepare_cached(&sql)
 }

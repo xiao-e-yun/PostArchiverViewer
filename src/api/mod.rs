@@ -1,7 +1,7 @@
 pub mod category;
 pub mod post;
+pub mod posts;
 pub mod relation;
-pub mod search;
 pub mod summary;
 pub mod utils;
 
@@ -18,8 +18,9 @@ use axum::{
     Json, Router,
 };
 use cached::{TimedCache, TimedSizedCache};
+use category::Category;
 use post_archiver::{manager::PostArchiverManager, Author, Collection, Platform, Tag};
-use search::{get_search_api, SearchQuery};
+use posts::SearchQuery;
 use serde::Deserialize;
 use summary::get_summary_api;
 
@@ -34,10 +35,10 @@ pub struct AppState {
     full_text_search: bool,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Caches {
-    pub tables: TimedSizedCache<&'static str, usize>,
-    pub posts: TimedSizedCache<SearchQuery, usize>,
+    pub tables: Mutex<TimedCache<&'static str, usize>>,
+    pub posts: Mutex<TimedSizedCache<SearchQuery, usize>>,
 }
 
 impl AppState {
@@ -60,14 +61,14 @@ pub fn get_api_router(config: &Config) -> Router<()> {
     let mut manager = connect_database(path.as_path());
 
     #[cfg(feature = "full-text-search")]
-    let full_text_search = search::sync_search_api(config, &mut manager);
+    let full_text_search = posts::sync_text_search(config, &mut manager);
 
     let manager = Arc::new(Mutex::new(manager));
     let state = AppState {
-        caches: Caches {
-            tables: TimedCache::with_lifespan(60 * 60 * 12),
-            posts: TimedSizedCache::with_size_and_lifespan(256, 60 * 60 * 12),
-        },
+        caches: Arc::new(Caches {
+            tables: Mutex::new(TimedCache::with_lifespan(60 * 60 * 12)),
+            posts: Mutex::new(TimedSizedCache::with_size_and_lifespan(256, 60 * 60 * 12)),
+        }),
         config: config.clone(),
         manager,
         #[cfg(feature = "full-text-search")]
@@ -75,16 +76,16 @@ pub fn get_api_router(config: &Config) -> Router<()> {
     };
 
     let router = Router::new()
-        .route("/search", get(get_search_api))
         .route("/summary", get(get_summary_api))
         .route("/redirect", get(get_redirect_api))
         .route("/config.json", get(get_config_api));
 
-    let router = post::wrap_posts_route(router);
-    let router = Tag::wrap_category_and_posts_route(router);
-    let router = Author::wrap_category_and_posts_route(router);
-    let router = Platform::wrap_category_and_posts_route(router);
-    let router = Collection::wrap_category_and_posts_route(router);
+    let router = posts::wrap_posts_route(router);
+    let router = Tag::wrap_category_route(router);
+    let router = Author::wrap_category_route(router);
+    let router = Platform::wrap_category_route(router);
+    let router = Collection::wrap_category_route(router);
+    let router = Collection::wrap_category_route(router);
 
     router.fallback(StatusCode::NOT_FOUND).with_state(state)
 }

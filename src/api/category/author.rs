@@ -4,18 +4,17 @@ use axum::{
     routing::get,
     Json, Router,
 };
-use mini_moka::sync::Cache;
 use post_archiver::{Alias, Author, AuthorId, PlatformId};
 use rusqlite::Row;
 
 use crate::api::{
-    category::{get_category_handler, list_category_posts_handler},
+    category::{get_category_handler, list_category_handler},
     relation::{RequireRelations, WithRelations},
     utils::ListResponse,
     AppState,
 };
 
-use super::{Category, CategoryApiRouter, CategoryPostsApiRouter};
+use super::Category;
 
 impl RequireRelations for Author {
     fn file_metas(&self) -> Vec<post_archiver::FileMetaId> {
@@ -31,32 +30,19 @@ impl Category for Author {
     fn from_row(row: &Row) -> Result<Self, rusqlite::Error> {
         Author::from_row(row)
     }
-}
 
-impl CategoryApiRouter for Author {
-    const ROUTE_NAME: &'static str = "authors";
-}
-
-impl CategoryPostsApiRouter for Author {
-    const JOIN_RELATION: &'static str = "JOIN author_posts ON author_posts.post = posts.id";
-    const FILTER: &'static str = "author_posts.author";
-
-    fn post_cache(state: &crate::api::AppState) -> &Cache<Self::Id, usize> {
-        &state.caches.authors
-    }
-
-    fn wrap_category_and_posts_route(router: Router<AppState>) -> Router<AppState> {
-        Self::wrap_category_route(router)
+    fn wrap_category_route(router: Router<AppState>) -> Router<AppState> {
+        router
             .route(
-                &format!("/{}/{{id}}", Self::ROUTE_NAME),
+                &format!("/{}", Self::TABLE_NAME),
+                get(list_category_handler::<Self>),
+            )
+            .route(
+                &format!("/{}/{{id}}", Self::TABLE_NAME),
                 get(get_category_handler::<Self>),
             )
             .route(
-                &format!("/{}/{{id}}/posts", Self::ROUTE_NAME),
-                get(list_category_posts_handler::<Self>),
-            )
-            .route(
-                &format!("/{}/{{id}}/aliases", Self::ROUTE_NAME),
+                &format!("/{}/{{id}}/aliases", Self::TABLE_NAME),
                 get(author_aliases_handler),
             )
     }

@@ -60,7 +60,6 @@ pub struct ListResponse<T> {
     pub list: Vec<T>,
     pub total: usize,
 }
-pub type PostListResponse = ListResponse<PostPreview>;
 
 impl<T: RequireRelations + TS> RequireRelations for ListResponse<T> {
     fn authors(&self) -> Vec<AuthorId> {

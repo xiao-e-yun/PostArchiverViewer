@@ -1,10 +1,8 @@
 use axum::{
     extract::{Path, State},
     http::StatusCode,
-    routing::get,
-    Json, Router,
+    Json,
 };
-use axum_extra::extract::Query;
 use chrono::{DateTime, Utc};
 use post_archiver::{
     Author, Collection, Comment, Content, FileMetaId, PlatformId, Post, PostId, Tag,
@@ -13,31 +11,9 @@ use rusqlite::OptionalExtension;
 use serde::Serialize;
 use ts_rs::TS;
 
-use crate::api::{
-    search::{get_search_api, SearchQuery},
-    utils::{Pagination, PostListResponse},
-    AppState,
-};
+use crate::api::AppState;
 
 use super::relation::{RequireRelations, WithRelations};
-
-pub fn wrap_posts_route(router: Router<AppState>) -> Router<AppState> {
-    router
-        .route("/posts", get(list_posts_handler))
-        .route("/posts/{id}", get(get_post_handler))
-}
-
-async fn list_posts_handler(
-    Query(pagination): Query<Pagination>,
-    State(state): State<AppState>,
-) -> Result<Json<WithRelations<PostListResponse>>, StatusCode> {
-    get_search_api(
-        Query(pagination),
-        Query(SearchQuery::default()),
-        State(state),
-    )
-    .await
-}
 
 #[derive(Debug, Clone, Serialize, TS)]
 #[ts(export)]
