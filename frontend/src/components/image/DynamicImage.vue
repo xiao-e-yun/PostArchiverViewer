@@ -28,7 +28,7 @@ const src = computed(() => {
     : window.devicePixelRatio;
 
   url.searchParams.set("ce", "");
-  if (dpr !== 1) url.searchParams.set("dpr", dpr.toString());
+  if (dpr !== 1) url.searchParams.set("dpr", Math.min(dpr, 2).toString());
   if (props.format) url.searchParams.set("output", props.format);
 
   url.searchParams.set("w", "__WIDTH__");
