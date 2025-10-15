@@ -11,25 +11,26 @@ use std::{
 };
 
 use axum::{
+    Router,
     extract::{Query, State},
     http::StatusCode,
     response::Redirect,
     routing::get,
-    Json, Router,
 };
 use cached::{TimedCache, TimedSizedCache};
 use category::Category;
-use post_archiver::{manager::PostArchiverManager, Author, Collection, Platform, Tag};
+use post_archiver::{Author, Collection, Platform, Tag, manager::PostArchiverManager};
 use posts::SearchQuery;
 use serde::Deserialize;
 use summary::get_summary_api;
 
-use crate::config::{Config, PublicConfig};
+use crate::config::Config;
 
 #[derive(Clone)]
 pub struct AppState {
     manager: Arc<Mutex<PostArchiverManager>>,
     caches: Arc<Caches>,
+    #[allow(unused)]
     config: Config,
     #[cfg(feature = "full-text-search")]
     full_text_search: bool,
@@ -77,8 +78,7 @@ pub fn get_api_router(config: &Config) -> Router<()> {
 
     let router = Router::new()
         .route("/summary", get(get_summary_api))
-        .route("/redirect", get(get_redirect_api))
-        .route("/config.json", get(get_config_api));
+        .route("/redirect", get(get_redirect_api));
 
     let router = posts::wrap_posts_route(router);
     let router = Tag::wrap_category_route(router);
@@ -131,8 +131,4 @@ async fn get_redirect_api(
     };
 
     Ok(Redirect::permanent(&url))
-}
-
-pub async fn get_config_api(State(state): State<AppState>) -> Json<PublicConfig> {
-    Json(state.config.public.clone())
 }

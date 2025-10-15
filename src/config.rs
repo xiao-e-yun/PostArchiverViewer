@@ -27,10 +27,12 @@ pub struct Config {
 pub struct PublicConfig {
     /// Example: https://static.example.com/archiver
     #[clap(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub resource_url: Option<String>,
 
     /// Example: https://images.example.com/archiver
     #[clap(long)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub images_url: Option<String>,
 }
 

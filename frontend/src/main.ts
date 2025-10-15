@@ -7,7 +7,7 @@ import Home from "./pages/Home.vue";
 import Post from "./pages/Post.vue";
 import About from "./pages/About.vue";
 import Search from "./pages/Search.vue";
-import { setPublicConfig } from "./api";
+import { loadPublicConfig } from "./api";
 import Posts from "./pages/Posts.vue";
 import type { CategoryPostsContext } from "./pages/CategoryPosts.vue";
 import Category from "./pages/Category.vue";
@@ -48,6 +48,6 @@ import CategoryPosts from "./pages/CategoryPosts.vue";
     },
   });
 
-  await setPublicConfig();
+  await loadPublicConfig();
   createApp(App).use(router).mount("#app");
 })();

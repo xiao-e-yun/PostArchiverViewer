@@ -60,7 +60,7 @@ async fn main() {
     let resource_router = get_resource_router(&config);
     let api_router = get_api_router(&config);
 
-    let app = frontend()
+    let app = frontend(&config.public)
         .nest("/api", api_router)
         .nest("/images", images_router)
         .nest("/resource", resource_router)
