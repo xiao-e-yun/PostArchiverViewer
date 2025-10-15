@@ -95,13 +95,15 @@ const hasThumb = computed(() =>
           class="h-[32px] md:h-[44px] [.inline-list>&:nth-child(n+4)]:max-md:hidden [.inline-list>&:nth-child(n+5)]:max-xl:hidden [.inline-list>&:nth-child(n+7)]:hidden"
         />
       </template>
-      <Card
+      <RouterLink
         v-for="item in list"
         :key="item.id"
-        class="transition-transform hover:scale-105 hover:z-10 relative w-full h-full overflow-ellipsis [.inline-list>&:nth-child(n+4)]:max-md:hidden [.inline-list>&:nth-child(n+5)]:max-xl:hidden [.inline-list>&:nth-child(n+7)]:hidden"
-        as-child
+        :to="`/${category}/${item.id}`"
       >
-        <RouterLink :to="`/${category}/${item.id}`">
+        <Card
+          class="transition-transform hover:scale-105 hover:z-10 relative w-full h-full overflow-ellipsis [.inline-list>&:nth-child(n+4)]:max-md:hidden [.inline-list>&:nth-child(n+5)]:max-xl:hidden [.inline-list>&:nth-child(n+7)]:hidden"
+          as-child
+        >
           <CardContent class="px-3 py-2 max-sm:text-xs">
             <CardTitle class="p-0 text-xs md:text-lg capitalize">
               <span v-if="'platform' in item && item.platform">
@@ -110,8 +112,8 @@ const hasThumb = computed(() =>
               {{ (category === "tags" ? "#" : "") + item.name }}
             </CardTitle>
           </CardContent>
-        </RouterLink>
-      </Card>
+        </Card>
+      </RouterLink>
     </div>
   </DynamicList>
 </template>
