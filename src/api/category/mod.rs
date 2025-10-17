@@ -24,10 +24,19 @@ use super::{
     AppState,
 };
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CategoryOrderBy {
+    Id,
+    Name,
+    Updated,
+    Random,
+}
+
 pub trait Category: RequireRelations + Serialize + Debug + TS + Sized + 'static {
     type Id: From<u32> + Debug + Serialize + ToSql + Copy + Eq + Hash + Sync + Send + 'static;
     const TABLE_NAME: &'static str;
-    const ORDER_BY: &'static str = "ORDER BY id DESC";
+    const DEFAULT_ORDER_BY: CategoryOrderBy = CategoryOrderBy::Name;
     fn from_row(row: &Row) -> Result<Self, rusqlite::Error>;
 
     fn wrap_category_route(router: Router<AppState>) -> Router<AppState> {
@@ -46,6 +55,7 @@ pub trait Category: RequireRelations + Serialize + Debug + TS + Sized + 'static 
         manager: &PostArchiverManager,
         pagination: Pagination,
         search: String,
+        order_by: Option<CategoryOrderBy>,
     ) -> Result<Vec<Self>, rusqlite::Error> {
         let [limit, offset] = pagination.params();
         let (filter, params) = if search.is_empty() {
@@ -61,7 +71,13 @@ pub trait Category: RequireRelations + Serialize + Debug + TS + Sized + 'static 
             "SELECT * FROM {} {} {} LIMIT ? OFFSET ?",
             Self::TABLE_NAME,
             filter,
-            Self::ORDER_BY,
+            match (order_by.unwrap_or(Self::DEFAULT_ORDER_BY), Self::TABLE_NAME) {
+                (CategoryOrderBy::Id, _) => "ORDER BY id DESC",
+                (CategoryOrderBy::Name, _) => "ORDER BY name ASC",
+                (CategoryOrderBy::Updated, "author") => "ORDER BY updated DESC",
+                (CategoryOrderBy::Updated, _) => "ORDER BY id DESC", // Fallback to id
+                (CategoryOrderBy::Random, _) => "ORDER BY RANDOM()",
+            }
         ))?;
 
         let list = stmt.query_map(params, Self::from_row)?;
@@ -118,10 +134,11 @@ pub trait Category: RequireRelations + Serialize + Debug + TS + Sized + 'static 
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct Filter {
     #[serde(default)]
     pub search: String,
+    pub order_by: Option<CategoryOrderBy>,
 }
 
 async fn list_category_handler<T: Category>(
@@ -130,7 +147,7 @@ async fn list_category_handler<T: Category>(
     State(state): State<AppState>,
 ) -> Result<Json<WithRelations<ListResponse<T>>>, StatusCode> {
     let manager = &state.manager();
-    let list = T::list(manager, pagination, filter.search.clone())
+    let list = T::list(manager, pagination, filter.search.clone(), filter.order_by)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let total =
         T::total(&state, manager, filter.search).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;

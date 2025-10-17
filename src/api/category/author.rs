@@ -14,7 +14,7 @@ use crate::api::{
     AppState,
 };
 
-use super::Category;
+use super::{Category, CategoryOrderBy};
 
 impl RequireRelations for Author {
     fn file_metas(&self) -> Vec<post_archiver::FileMetaId> {
@@ -25,7 +25,7 @@ impl RequireRelations for Author {
 impl Category for Author {
     type Id = AuthorId;
     const TABLE_NAME: &'static str = "authors";
-    const ORDER_BY: &'static str = "ORDER BY updated DESC";
+    const DEFAULT_ORDER_BY: CategoryOrderBy = CategoryOrderBy::Updated;
 
     fn from_row(row: &Row) -> Result<Self, rusqlite::Error> {
         Author::from_row(row)

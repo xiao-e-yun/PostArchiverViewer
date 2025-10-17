@@ -15,13 +15,13 @@ import DoubleBadge from "./DoubleBadge.vue";
 const props = withDefaults(
   defineProps<{
     category: "authors" | "collections" | "tags" | "platforms";
-    query?: UrlParams;
+    querys?: UrlParams;
     controls?: boolean;
     limit?: number;
     inline?: boolean;
   }>(),
   {
-    query: () => ({}),
+    querys: () => ({}),
     limit: undefined,
     controls: true,
     inline: false,

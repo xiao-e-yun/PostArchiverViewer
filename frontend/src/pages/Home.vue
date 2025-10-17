@@ -16,6 +16,8 @@ import CategoryList from "@/components/CategoryList.vue";
 
 const authorsEl = useTemplateRef<HTMLDialogElement>("authorsList");
 watch(authorsEl, (el) => el && useLazyLoad().update());
+
+const RANDOM_QUERY = { order_by: "random" };
 </script>
 
 <template>
@@ -29,7 +31,13 @@ watch(authorsEl, (el) => el && useLazyLoad().update());
       <ChevronRight :size="30" />
     </div>
     <Separator class="my-2" />
-    <CategoryList category="authors" :controls="false" :limit="5" inline />
+    <CategoryList
+      category="authors"
+      :controls="false"
+      :limit="5"
+      inline
+      :querys="RANDOM_QUERY"
+    />
   </RouterLink>
 
   <RouterLink to="/posts" class="block mb-8">
@@ -55,7 +63,13 @@ watch(authorsEl, (el) => el && useLazyLoad().update());
       <ChevronRight :size="30" />
     </div>
     <Separator class="my-2" />
-    <CategoryList category="tags" :controls="false" :limit="20" inline />
+    <CategoryList
+      category="tags"
+      :controls="false"
+      :limit="20"
+      inline
+      :querys="RANDOM_QUERY"
+    />
   </RouterLink>
 
   <RouterLink to="/collections" class="block mb-8">
@@ -68,7 +82,13 @@ watch(authorsEl, (el) => el && useLazyLoad().update());
       <ChevronRight :size="30" />
     </div>
     <Separator class="my-2" />
-    <CategoryList category="collections" :controls="false" :limit="5" inline />
+    <CategoryList
+      category="collections"
+      :controls="false"
+      :limit="5"
+      inline
+      :querys="RANDOM_QUERY"
+    />
   </RouterLink>
 
   <RouterLink to="/platforms" class="block mb-12">
