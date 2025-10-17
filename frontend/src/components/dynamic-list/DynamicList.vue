@@ -73,6 +73,7 @@ const total = (() => {
 })();
 
 provide(dynamicListControlKey, {
+  isFixedLimit: computed(() => props.limit !== undefined),
   itemsPrePage,
   pageIndex,
   pending,

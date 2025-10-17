@@ -45,6 +45,19 @@ watch(authorsEl, (el) => el && useLazyLoad().update());
     <PostList url="/api/posts" :controls="false" :limit="5" inline />
   </RouterLink>
 
+  <RouterLink to="/tags" class="block mb-8">
+    <div class="flex justify-between">
+      <h1 class="text-base lg:text-2xl">
+        <Tags :size="30" class="inline-block mr-2" />
+        Tags
+      </h1>
+
+      <ChevronRight :size="30" />
+    </div>
+    <Separator class="my-2" />
+    <CategoryList category="tags" :controls="false" :limit="20" inline />
+  </RouterLink>
+
   <RouterLink to="/collections" class="block mb-8">
     <div class="flex justify-between">
       <h1 class="text-base lg:text-2xl">
@@ -58,19 +71,6 @@ watch(authorsEl, (el) => el && useLazyLoad().update());
     <CategoryList category="collections" :controls="false" :limit="5" inline />
   </RouterLink>
 
-  <RouterLink to="/tags" class="block mb-8">
-    <div class="flex justify-between">
-      <h1 class="text-base lg:text-2xl">
-        <Tags :size="30" class="inline-block mr-2" />
-        Tags
-      </h1>
-
-      <ChevronRight :size="30" />
-    </div>
-    <Separator class="my-2" />
-    <CategoryList category="tags" :controls="false" :limit="6" inline />
-  </RouterLink>
-
   <RouterLink to="/platforms" class="block mb-8">
     <div class="flex justify-between">
       <h1 class="text-base lg:text-2xl">
@@ -81,6 +81,6 @@ watch(authorsEl, (el) => el && useLazyLoad().update());
       <ChevronRight :size="30" />
     </div>
     <Separator class="my-2" />
-    <CategoryList category="platforms" :controls="false" :limit="6" inline />
+    <CategoryList category="platforms" :controls="false" :limit="12" inline />
   </RouterLink>
 </template>

@@ -22,7 +22,7 @@ import {
 import { Button } from "../ui/button";
 import { useRouter } from "vue-router";
 
-const { total, pending, pageIndex, itemsPrePage } = inject(
+const { total, pending, pageIndex, itemsPrePage, isFixedLimit } = inject(
   dynamicListControlKey,
 )!;
 
@@ -49,7 +49,7 @@ function updatePageIndex(page: number) {
 <template>
   <div class="flex flex-row-reverse justify-between gap-2 flex-nowrap">
     <div class="flex gap-2 flex-wrap justify-end">
-      <Select v-model="postsPrePageSelectValue">
+      <Select v-if="!isFixedLimit" v-model="postsPrePageSelectValue">
         <SelectTrigger class="w-32">
           <LayoutListIcon />
           <SelectValue />

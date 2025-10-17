@@ -5,6 +5,7 @@ export const dynamicPrePageKey =
   "post-archiver-viewer.dynamic-list.posts-per-page";
 
 export interface DynamicListControl {
+  isFixedLimit: Ref<boolean>;
   itemsPrePage: Ref<number | undefined>;
   pageIndex: Ref<number>;
   pending: Ref<boolean>;

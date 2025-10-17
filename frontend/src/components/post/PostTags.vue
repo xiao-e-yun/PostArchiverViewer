@@ -52,7 +52,7 @@ const source = computed(() => {
       :to="`/platforms/${platform.id}`"
       class="flex items-center gap-1"
     >
-      <Badge>{{ platform.name }}</Badge>
+      <Badge>:{{ platform.name }}</Badge>
     </RouterLink>
     <Skeleton v-else class="rounded-full w-16 h-[24px]" />
     <a v-if="source" :href="source">
@@ -95,9 +95,7 @@ const source = computed(() => {
       :key="collection.id"
       :to="`/collections/${collection.id}`"
     >
-      <Badge>
-        {{ collection.name }}
-      </Badge>
+      <Badge> .{{ collection.name }} </Badge>
     </RouterLink>
     <!-- Tags -->
     <RouterLink v-for="tag in tags" :key="tag.id" :to="`/tags/${tag.id}`">

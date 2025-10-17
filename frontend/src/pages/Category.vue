@@ -16,5 +16,8 @@ defineProps<{
   <h1 class="text-4xl font-bold mb-4 capitalize">
     {{ category }}
   </h1>
-  <CategoryList :category="category" />
+  <CategoryList
+    :category="category"
+    :limit="['tags', 'platforms'].includes(category) ? 100 : undefined"
+  />
 </template>

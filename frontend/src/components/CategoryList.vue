@@ -2,13 +2,15 @@
 import { type UrlParams } from "@/utils";
 import DynamicList from "./dynamic-list/DynamicList.vue";
 import { Skeleton } from "./ui/skeleton";
-import { Card, CardContent, CardDescription, CardTitle } from "./ui/card";
+import { Card, CardDescription, CardTitle } from "./ui/card";
 import { RouterLink } from "vue-router";
 import { useLazyLoad } from "@/lazyload";
 import DynamicImage from "./image/DynamicImage.vue";
 import { ImageOffIcon } from "lucide-vue-next";
 import { Badge } from "./ui/badge";
 import { computed } from "vue";
+import { categoryBuilders, CategoryType } from "@/category";
+import DoubleBadge from "./DoubleBadge.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -30,6 +32,10 @@ const lazyload = useLazyLoad();
 const hasThumb = computed(() =>
   ["authors", "collections"].includes(props.category),
 );
+
+const categoryPrefix = Object.fromEntries(
+  categoryBuilders.map((builder) => [builder.TYPE, builder.PREFIX] as const),
+) as Record<CategoryType, string>;
 </script>
 
 <template>
@@ -59,7 +65,7 @@ const hasThumb = computed(() =>
       >
         <RouterLink :to="`/${category}/${item.id}`">
           <DynamicImage
-            v-if="'thumb' in item"
+            v-if="'thumb' in item && item.thumb"
             :src="relations.fileMetaPath(item.thumb!)!"
             :aspect="16 / 9"
             :width="30"
@@ -70,7 +76,7 @@ const hasThumb = computed(() =>
             <ImageOffIcon class="w-full h-full p-4" :stroke-width="0.5" />
           </div>
           <CardTitle class="text-xl md:text-2xl absolute top-0 left-0 p-4">
-            {{ (category === "authors" ? "@" : "") + item.name }}
+            {{ categoryPrefix[category] + item.name }}
           </CardTitle>
           <CardDescription class="absolute bottom-4 left-4">
             <Badge
@@ -85,7 +91,7 @@ const hasThumb = computed(() =>
     </div>
     <div
       v-else
-      class="grid grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-4"
+      class="flex flex-wrap gap-2"
       :class="{ 'inline-list': props.inline }"
     >
       <template v-if="!list">
@@ -100,19 +106,14 @@ const hasThumb = computed(() =>
         :key="item.id"
         :to="`/${category}/${item.id}`"
       >
-        <Card
-          class="transition-transform hover:scale-105 hover:z-10 relative w-full h-full overflow-ellipsis [.inline-list>&:nth-child(n+4)]:max-md:hidden [.inline-list>&:nth-child(n+5)]:max-xl:hidden [.inline-list>&:nth-child(n+7)]:hidden"
-          as-child
+        <DoubleBadge
+          class="text-md transition-transform hover:scale-105 hover:z-10"
         >
-          <CardContent class="px-3 py-2 max-sm:text-xs">
-            <CardTitle class="p-0 text-xs md:text-lg capitalize">
-              <span v-if="'platform' in item && item.platform">
-                {{ relations.platforms.get(item.platform)?.name || "Unknown" }}:
-              </span>
-              {{ (category === "tags" ? "#" : "") + item.name }}
-            </CardTitle>
-          </CardContent>
-        </Card>
+          {{ categoryPrefix[category] + item.name }}
+          <template v-if="item.platform" #secondary>
+            {{ relations.platforms.get(item.platform)?.name || "Unknown" }}
+          </template>
+        </DoubleBadge>
       </RouterLink>
     </div>
   </DynamicList>

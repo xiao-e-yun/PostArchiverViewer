@@ -21,7 +21,7 @@ const slots = defineSlots<{
     as-child
   >
     <component :is="link ? 'a' : 'div'" :href="link">
-      <Badge v-if="slots.secondary" as-child class="mr-1">
+      <Badge v-if="slots.secondary" as-child class="mr-1 text-[length:inherit]">
         <component
           :is="secondaryLink ? RouterLink : 'div'"
           :to="secondaryLink"
