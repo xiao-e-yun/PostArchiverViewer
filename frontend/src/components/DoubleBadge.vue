@@ -3,26 +3,34 @@ import { Badge } from "@/components/ui/badge";
 import { RouterLink } from "vue-router";
 
 defineProps<{
-  category: {
-    name: string;
-    link?: string | null;
-  };
-  main: {
-    name: string;
-    link?: string | null;
-  };
+  link?: string;
+  secondaryLink?: string;
+}>();
+
+const slots = defineSlots<{
+  default: () => unknown;
+  secondary?: () => unknown;
 }>();
 </script>
 
 <template>
-  <component :is="main.link ? 'a' : 'div'" :href="main.link">
-    <Badge class="relative py-0 pl-0 gap-1 border-none" variant="secondary">
-      <component :is="category.link ? RouterLink : 'div'" :to="category.link">
-        <Badge class="capitalize">
-          {{ category.name }}
-        </Badge>
-      </component>
-      {{ main.name }}
-    </Badge>
-  </component>
+  <Badge
+    variant="secondary"
+    class="relative py-0 gap-1 border-none capitalize"
+    :style="{ 'padding-left': slots.secondary && '0' }"
+    as-child
+  >
+    <component :is="link ? 'a' : 'div'" :href="link">
+      <Badge v-if="slots.secondary" as-child>
+        <component
+          :is="secondaryLink ? RouterLink : 'div'"
+          :to="secondaryLink"
+          class="capitalize"
+        >
+          <slot name="secondary" />
+        </component>
+      </Badge>
+      <slot />
+    </component>
+  </Badge>
 </template>

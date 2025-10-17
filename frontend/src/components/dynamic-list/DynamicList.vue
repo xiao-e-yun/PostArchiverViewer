@@ -13,19 +13,21 @@ import { refThrottled, useEventListener, useLocalStorage } from "@vueuse/core";
 
 import { dynamicListControlKey, dynamicPrePageKey } from "./utils";
 import { useRouteQuery } from "@vueuse/router";
-import { cloneDeep, isEqual } from "lodash";
+import { cloneDeep, isEqual, merge } from "lodash";
 import type { WithRelations } from "@api/WithRelations";
 import { watch } from "vue";
 
 const props = withDefaults(
   defineProps<{
     url: string;
-    query?: UrlParams;
+    defaults?: UrlParams;
+    querys?: UrlParams;
     controls?: boolean;
     limit?: number;
   }>(),
   {
-    query: () => ({}),
+    defaults: () => ({}),
+    querys: () => ({}),
     limit: undefined,
     controls: true,
   },
@@ -36,7 +38,7 @@ const itemsPrePage = props.limit
   : useLocalStorage(dynamicPrePageKey, 20);
 const pageIndex = useRouteQuery("page", "1", { transform: Number });
 watch(
-  [() => props.url, () => props.query, itemsPrePage],
+  [() => props.url, () => props.querys, itemsPrePage],
   (value, old) => !isEqual(value, old) && (pageIndex.value = 1),
 );
 
@@ -47,7 +49,7 @@ const url = computed(
     getUrlWithParams(props.url, {
       page: pageThrottled.value - 1,
       limit: itemsPrePage.value,
-      ...props.query,
+      ...merge({}, props.querys, props.defaults),
     }).href,
 );
 const { data, isFetching: pending } = useFetchWithCache<

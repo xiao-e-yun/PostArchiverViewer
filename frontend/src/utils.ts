@@ -1,9 +1,18 @@
-import { shallowRef, toRefs, toValue, type MaybeRefOrGetter } from "vue";
+import {
+  ref,
+  shallowRef,
+  toRefs,
+  toValue,
+  watch,
+  type MaybeRefOrGetter,
+  type Ref,
+} from "vue";
 import type { FileMeta } from "@api/FileMeta";
 import type { WithRelations } from "@api/WithRelations";
 import { usePublicConfig } from "./api";
 import {
   computedWithControl,
+  extendRef,
   reactiveComputed,
   toReactive,
   until,
@@ -13,6 +22,7 @@ import {
 } from "@vueuse/core";
 import { LRUMap } from "lru_map";
 import { computed } from "vue";
+import { cloneDeep } from "lodash";
 
 export function useRelations<T>(
   data: MaybeRefOrGetter<WithRelations<T> | null | undefined>,
@@ -164,3 +174,13 @@ export const useFetchWithCache = <T>(
     data: computed(() => result.data.value ?? prevResult?.data.value),
   };
 };
+
+export function commitRef<T>(staged: Ref<T>) {
+  const untracked = ref(cloneDeep(staged.value));
+  watch(staged, () => (untracked.value = cloneDeep(staged.value)));
+  return extendRef(untracked, {
+    commit() {
+      staged.value = cloneDeep(untracked.value);
+    },
+  });
+}

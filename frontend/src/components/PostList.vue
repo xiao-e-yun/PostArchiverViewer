@@ -11,13 +11,15 @@ import { Badge } from "./ui/badge";
 
 const props = withDefaults(
   defineProps<{
-    query?: UrlParams;
+    defaults?: UrlParams;
+    querys?: UrlParams;
     controls?: boolean;
     limit?: number;
     inline?: boolean;
   }>(),
   {
-    query: () => ({}),
+    defaults: () => ({}),
+    querys: () => ({}),
     limit: undefined,
     controls: true,
   },

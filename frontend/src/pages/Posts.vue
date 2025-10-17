@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import PostList from "@/components/PostList.vue";
+import Search from "@/components/search/Search.vue";
 </script>
 
 <template>
@@ -8,5 +8,5 @@ import PostList from "@/components/PostList.vue";
       <h1 class="text-4xl">Posts</h1>
     </RouterLink>
   </div>
-  <PostList url="/api/posts" :query="{}" />
+  <Search />
 </template>
