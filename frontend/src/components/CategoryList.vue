@@ -49,6 +49,9 @@ const categoryPrefix = Object.fromEntries(
       v-if="hasThumb"
       class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4"
       :class="{ 'inline-list': props.inline }"
+      :style="
+        category == 'collections' && 'row-gap: 2.5rem; margin-bottom: 2.5rem;'
+      "
     >
       <template v-if="!list">
         <Skeleton
@@ -60,7 +63,7 @@ const categoryPrefix = Object.fromEntries(
       <Card
         v-for="item in list"
         :key="item.id"
-        class="transition-transform hover:scale-105 hover:z-10 relative w-full h-full overflow-hidden [.inline-list>&:nth-child(n+3)]:max-md:hidden [.inline-list>&:nth-child(n+4)]:max-xl:hidden [.inline-list>&:nth-child(n+5)]:max-2xl:hidden [.inline-list>&:nth-child(n+6)]:hidden"
+        class="transition-transform hover:scale-105 hover:z-10 relative w-full h-full [.inline-list>&:nth-child(n+3)]:max-md:hidden [.inline-list>&:nth-child(n+4)]:max-xl:hidden [.inline-list>&:nth-child(n+5)]:max-2xl:hidden [.inline-list>&:nth-child(n+6)]:hidden"
         as-child
       >
         <RouterLink :to="`/${category}/${item.id}`">
@@ -69,23 +72,44 @@ const categoryPrefix = Object.fromEntries(
             :src="relations.fileMetaPath(item.thumb!)!"
             :aspect="16 / 9"
             :width="30"
-            class="aspect-video w-full object-cover opacity-50"
+            class="aspect-video w-full object-cover rounded-md opacity-50"
             @vue:mounted="() => lazyload.update()"
           />
-          <div v-else class="aspect-video opacity-50">
+          <div v-else class="aspect-video rounded-md opacity-50">
             <ImageOffIcon class="w-full h-full p-4" :stroke-width="0.5" />
           </div>
-          <CardTitle class="text-xl md:text-2xl absolute top-0 left-0 p-4">
-            {{ categoryPrefix[category] + item.name }}
-          </CardTitle>
-          <CardDescription class="absolute bottom-4 left-4">
-            <Badge
-              v-if="'updated' in item && item.updated"
-              class="max-sm:hidden"
+
+          <template v-if="category === 'collections'">
+            <div
+              class="w-full h-full absolute bg-background top-0 -z-10 rounded-md"
+            />
+            <div
+              class="w-full h-full absolute bg-secondary/30 top-3 -z-20 rounded-md border"
+            />
+            <div
+              class="w-full h-full absolute bg-secondary/30 top-6 -z-30 rounded-md border"
+            />
+            <CardTitle
+              class="text-xl md:text-2xl absolute top-0 left-0 w-full h-full flex items-center justify-center p-4 text-center"
             >
-              {{ new Date(item.updated).toLocaleString("zh-CN") }}
-            </Badge>
-          </CardDescription>
+              {{ categoryPrefix[category] + item.name }}
+            </CardTitle>
+          </template>
+
+          <CardTitle
+            v-else
+            class="text-xl md:text-2xl absolute top-0 left-0 p-4"
+          >
+            {{ categoryPrefix[category] + item.name }}
+            <CardDescription class="mt-2">
+              <Badge
+                v-if="'updated' in item && item.updated"
+                class="max-sm:hidden"
+              >
+                {{ new Date(item.updated).toLocaleString("zh-CN") }}
+              </Badge>
+            </CardDescription>
+          </CardTitle>
         </RouterLink>
       </Card>
     </div>

@@ -71,7 +71,7 @@ watch(authorsEl, (el) => el && useLazyLoad().update());
     <CategoryList category="collections" :controls="false" :limit="5" inline />
   </RouterLink>
 
-  <RouterLink to="/platforms" class="block mb-8">
+  <RouterLink to="/platforms" class="block mb-12">
     <div class="flex justify-between">
       <h1 class="text-base lg:text-2xl">
         <Quote :size="30" class="inline-block mr-2" />
