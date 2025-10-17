@@ -103,9 +103,13 @@ const source = computed(() => {
     <RouterLink v-for="tag in tags" :key="tag.id" :to="`/tags/${tag.id}`">
       <DoubleBadge
         v-if="tag.platform"
-        :main="{ name: '#' + tag.name, link: `/tags/${tag.id}` }"
-        :category="getPlatform(tag)"
-      />
+        :link="`/tags/${tag.id}`"
+        :secondary-link="getPlatform(tag).link"
+      >
+        <template #secondary> {{ getPlatform(tag).name }} </template>
+        #{{ tag.name }}
+      </DoubleBadge>
+
       <Badge v-else variant="secondary"> #{{ tag.name }} </Badge>
     </RouterLink>
   </div>

@@ -1,10 +1,10 @@
 <script lang="ts" setup>
-import Search from "@/components/search/Search.vue";
+import PostSearch from "@/components/search/PostSearch.vue";
 </script>
 
 <template>
   <div>
     <h1 class="text-4xl mb-4">Search</h1>
-    <Search />
+    <PostSearch />
   </div>
 </template>

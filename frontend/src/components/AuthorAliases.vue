@@ -15,7 +15,11 @@ const { data } = useFetchWithCache<WithRelations<ListResponse<Alias>>>(
 );
 const relations = useRelations(data);
 
-const aliases = computed(() => data.value?.list || []);
+const aliases = computed<Alias[]>(() => data.value?.list || []);
+const aliasesWithPlatforms = computed(() =>
+  aliases.value.map((a) => [a, getPlatform(a)] as const),
+);
+
 const getPlatform = (alias: Alias) => {
   const platforms = relations.platforms;
   const platform = platforms.get(alias.platform)!;
@@ -25,9 +29,12 @@ const getPlatform = (alias: Alias) => {
 
 <template>
   <DoubleBadge
-    v-for="(alias, index) in aliases"
+    v-for="([alias, platform], index) in aliasesWithPlatforms"
     :key="index"
-    :main="{ name: alias.source, link: alias.link }"
-    :category="getPlatform(alias)"
-  />
+    :link="alias.link ?? undefined"
+    :secondary-link="platform.link"
+  >
+    {{ alias.source }}
+    <template #secondary>{{ platform.name }}</template>
+  </DoubleBadge>
 </template>

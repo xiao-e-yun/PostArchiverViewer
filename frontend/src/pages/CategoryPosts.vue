@@ -2,7 +2,7 @@
 import type { Category } from "@/api";
 import AuthorAliases from "@/components/AuthorAliases.vue";
 import DynamicImage from "@/components/image/DynamicImage.vue";
-import Search from "@/components/search/Search.vue";
+import PostSearch from "@/components/search/PostSearch.vue";
 import { Badge } from "@/components/ui/badge";
 import { useLazyLoad } from "@/lazyload";
 import { useFetchWithCache, useRelations } from "@/utils";
@@ -62,5 +62,5 @@ const relations = useRelations(data);
       </div>
     </template>
   </div>
-  <Search :defaults="{ [category]: [id] }" />
+  <PostSearch :defaults="{ [category]: [id] }" />
 </template>

@@ -16,12 +16,12 @@ const slots = defineSlots<{
 <template>
   <Badge
     variant="secondary"
-    class="relative py-0 gap-1 border-none capitalize"
+    class="relative py-0 border-none capitalize flex"
     :style="{ 'padding-left': slots.secondary && '0' }"
     as-child
   >
     <component :is="link ? 'a' : 'div'" :href="link">
-      <Badge v-if="slots.secondary" as-child>
+      <Badge v-if="slots.secondary" as-child class="mr-1">
         <component
           :is="secondaryLink ? RouterLink : 'div'"
           :to="secondaryLink"
