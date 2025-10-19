@@ -1,11 +1,9 @@
+import type { commitRef } from "@/utils";
 import { useRouteQuery } from "@vueuse/router";
 import { forEach, mapValues } from "lodash";
-import { computed, toValue } from "vue";
+import { computed, ref, toValue, type InjectionKey } from "vue";
 
-const asArray = <T>(v: T | T[]) => (Array.isArray(v) ? v : [v]);
-const transform = <T>(v: T | T[]) => asArray(v).map(Number);
-
-type Querys = {
+export type SearchQuerys = {
   search: string;
   collections: number[];
   platforms: number[];
@@ -13,7 +11,20 @@ type Querys = {
   tags: number[];
 };
 
-export const useSearchQuerys = () => {
+const asArray = <T>(v: T | T[]) => (Array.isArray(v) ? v : [v]);
+const transform = <T>(v: T | T[]) => asArray(v).map(Number);
+
+export const useSearchQuerys = (bindRouteQuery = true) => {
+  if (!bindRouteQuery) {
+    return ref<SearchQuerys>({
+      search: "",
+      collections: [],
+      platforms: [],
+      authors: [],
+      tags: [],
+    });
+  }
+
   const rawQuerys = {
     search: useRouteQuery<string>("search", ""),
     collections: useRouteQuery("collections", [], { transform }),
@@ -22,9 +33,13 @@ export const useSearchQuerys = () => {
     tags: useRouteQuery("tags", [], { transform }),
   };
 
-  return computed<Querys>({
+  return computed<SearchQuerys>({
     set: (values) =>
-      forEach(values, (v, k) => (rawQuerys[k as keyof Querys].value = v)),
-    get: () => mapValues(rawQuerys, toValue) as unknown as Querys,
+      forEach(values, (v, k) => (rawQuerys[k as keyof SearchQuerys].value = v)),
+    get: () => mapValues(rawQuerys, toValue) as unknown as SearchQuerys,
   });
 };
+
+export const SearchContextKey = Symbol("SearchContext") as InjectionKey<
+  ReturnType<typeof commitRef<SearchQuerys>>
+>;

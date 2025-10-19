@@ -3,21 +3,16 @@ import PostList from "@/components/PostList.vue";
 import SearchInput from "./SearchInput.vue";
 import { computed } from "vue";
 import { mergeWith, union } from "lodash";
-import { useSearchQuerys } from "./search";
+import { useSearchQuerys, type SearchQuerys } from "./search";
 
-const p = defineProps<{
-  defaults?: {
-    collections?: number[];
-    platforms?: number[];
-    authors?: number[];
-    tags?: number[];
-  };
+const props = defineProps<{
+  defaults?: SearchQuerys;
 }>();
 
 const querys = useSearchQuerys();
 
-const mergedQuerys = computed(() =>
-  mergeWith({}, querys.value, p.defaults ?? {}, (objValue, srcValue) => {
+const mergedQuerys = computed<SearchQuerys>(() =>
+  mergeWith({}, querys.value, props.defaults ?? {}, (objValue, srcValue) => {
     if (Array.isArray(objValue)) return union(objValue, srcValue);
   }),
 );
