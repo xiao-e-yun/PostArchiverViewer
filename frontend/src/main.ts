@@ -12,6 +12,7 @@ import Posts from "./pages/Posts.vue";
 import type { CategoryPostsContext } from "./pages/CategoryPosts.vue";
 import Category from "./pages/Category.vue";
 import CategoryPosts from "./pages/CategoryPosts.vue";
+import Random from "./pages/Random.vue";
 
 (async () => {
   const categoryRouter = (category: string, context: CategoryPostsContext) =>
@@ -25,6 +26,7 @@ import CategoryPosts from "./pages/CategoryPosts.vue";
     { path: "/posts", component: Posts },
     { path: "/posts/:id", component: Post },
     { path: "/search", component: Search },
+    { path: "/random", component: Random },
     { path: "/about", component: About },
     ...categoryRouter("author", { category: "authors" }),
     ...categoryRouter("collection", { category: "collections" }),

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Info, Moon, Package, Search, Sun } from "lucide-vue-next";
+import { Info, Moon, Package, Search, Sun, Dices } from "lucide-vue-next";
 
 import { useColorMode } from "@vueuse/core";
 import { RouterView } from "vue-router";
@@ -9,6 +9,7 @@ const mode = useColorMode();
 
 const links = [
   { name: "Search", path: "/search", icon: Search },
+  { name: "Random", path: "/random", icon: Dices },
   { name: "About", path: "/about", icon: Info },
 ];
 </script>

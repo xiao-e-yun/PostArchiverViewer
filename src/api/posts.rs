@@ -74,6 +74,15 @@ pub fn sync_text_search(config: &Config, manager: &mut PostArchiverManager) -> b
     status
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum PostOrderBy {
+    Id,
+    #[default]
+    Updated,
+    Random,
+}
+
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Default)]
 pub struct SearchQuery {
     #[serde(default)]
@@ -86,6 +95,8 @@ pub struct SearchQuery {
     authors: Vec<AuthorId>,
     #[serde(default)]
     platforms: Vec<PlatformId>,
+    #[serde(default)]
+    order_by: PostOrderBy,
 }
 
 type SearchContext = (
@@ -113,7 +124,7 @@ pub async fn list_posts_handler(
         &query.platforms,
     );
 
-    let mut stmt = prepare_search(&context, conn).unwrap();
+    let mut stmt = prepare_search(&context, query.order_by, conn).unwrap();
 
     let pagination = pagination.params().map(|p| p.to_string());
     let params = params_from_iter(context.3.iter().chain(pagination.iter()));
@@ -152,6 +163,7 @@ pub async fn list_posts_handler(
 
 fn prepare_search<'a>(
     (joins, filters, havings, _params): &SearchContext,
+    order_by: PostOrderBy,
     connection: &'a Connection,
 ) -> Result<CachedStatement<'a>, rusqlite::Error> {
     let joins = joins.join(" ");
@@ -168,8 +180,14 @@ fn prepare_search<'a>(
         format!("GROUP BY posts.id HAVING {}", havings.join(" AND "))
     };
 
+    let order_by = match order_by {
+        PostOrderBy::Id => "posts.id DESC",
+        PostOrderBy::Updated => "posts.updated DESC",
+        PostOrderBy::Random => "RANDOM()",
+    };
+
     let sql  = format!(
-        "SELECT id, title, updated, thumb FROM posts {joins} {filters} {havings} ORDER BY posts.updated DESC LIMIT ? OFFSET ?"
+        "SELECT id, title, updated, thumb FROM posts {joins} {filters} {havings} ORDER BY {order_by} LIMIT ? OFFSET ?"
     );
 
     connection.prepare_cached(&sql)

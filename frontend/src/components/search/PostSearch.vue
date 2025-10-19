@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import PostList from "@/components/PostList.vue";
-import { useRouteQuery } from "@vueuse/router";
 import SearchInput from "./SearchInput.vue";
-import { computed, toValue } from "vue";
-import { forEach, mapValues, mergeWith, union } from "lodash";
+import { computed } from "vue";
+import { mergeWith, union } from "lodash";
+import { useSearchQuerys } from "./search";
 
 const p = defineProps<{
   defaults?: {
@@ -14,30 +14,7 @@ const p = defineProps<{
   };
 }>();
 
-const asArray = <T,>(v: T | T[]) => (Array.isArray(v) ? v : [v]);
-const transform = <T,>(v: T | T[]) => asArray(v).map(Number);
-
-const rawQuerys = {
-  search: useRouteQuery<string>("search", ""),
-  collections: useRouteQuery("collections", [], { transform }),
-  platforms: useRouteQuery("platforms", [], { transform }),
-  authors: useRouteQuery("authors", [], { transform }),
-  tags: useRouteQuery("tags", [], { transform }),
-};
-
-type Querys = {
-  search: string;
-  collections: number[];
-  platforms: number[];
-  authors: number[];
-  tags: number[];
-};
-
-const querys = computed<Querys>({
-  set: (values) =>
-    forEach(values, (v, k) => (rawQuerys[k as keyof Querys].value = v)),
-  get: () => mapValues(rawQuerys, toValue) as unknown as Querys,
-});
+const querys = useSearchQuerys();
 
 const mergedQuerys = computed(() =>
   mergeWith({}, querys.value, p.defaults ?? {}, (objValue, srcValue) => {
