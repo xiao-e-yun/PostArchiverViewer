@@ -1,49 +1,70 @@
 <script setup lang="tsx">
-import { computed, inject } from "vue";
+import { computed, inject, ref } from "vue";
 import { postKey } from "./utils";
 import type { Comment } from "@api/Comment";
 import Separator from "../ui/separator/Separator.vue";
+import { Button } from "../ui/button";
+import { createReusableTemplate } from "@vueuse/core";
+import { Badge } from "../ui/badge";
+import Collapsible from "../ui/collapsible/Collapsible.vue";
+import { CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
+import { ChevronDown } from "lucide-vue-next";
 
 const { post } = inject(postKey)!;
+const comments = computed(() => (post.value?.comments as Comment[]) ?? []);
 
-const comments = computed(() => {
-  const $post = post.value;
-  if (!$post) return [];
+const showCount = ref(3);
 
-  const parseComments = (comments: Comment[], level = 0) => {
-    const flattened: [Comment, number][] = [];
-
-    for (const comment of comments) {
-      flattened.push([comment, level]);
-      const replies = parseComments(comment.replies ?? [], level + 1);
-      flattened.push(...replies);
-    }
-
-    return flattened;
-  };
-
-  return parseComments($post.comments);
-});
+const [DefineComment, Comment] = createReusableTemplate<{
+  comment: Comment;
+}>();
 </script>
 
 <template>
-  <div v-if="comments.length" class="flex flex-col">
-    <Separator label="Comment" class="text-lg mt-6" />
-    <div
-      v-for="([comment, level], index) in comments"
-      :key="index"
-      class="flex px-2"
-    >
-      <div v-for="indent in level" :key="indent" class="mx-2 border-l" />
-      <div
-        class="flex flex-col"
-        :style="{ paddingTop: level == 0 ? '2rem' : '1rem' }"
-      >
-        <span class="rounded-sm bg-secondary w-fit px-1"
-          >{{ comment.user }}:</span
+  <DefineComment v-slot="{ comment }">
+    <div class="flex flex-col gap-1 my-2">
+      <Badge variant="secondary" class="mr-auto rounded-md px-2">
+        {{ comment.user }}
+      </Badge>
+      <p>{{ comment.text }}</p>
+      <Collapsible>
+        <CollapsibleTrigger
+          v-if="comment.replies?.length"
+          class="text-sm mt-1 text-left group"
         >
-        <p class="pl-2">{{ comment.text }}</p>
-      </div>
+          <ChevronDown
+            class="inline transition-transform group-data-[state=open]:rotate-180"
+            :size="20"
+          />
+          {{ comment.replies.length }} Replies
+        </CollapsibleTrigger>
+        <CollapsibleContent as-child class="ml-10">
+          <Comment
+            v-for="(reply, i) in comment.replies"
+            :key="i"
+            :comment="reply"
+          />
+        </CollapsibleContent>
+      </Collapsible>
+    </div>
+  </DefineComment>
+
+  <div v-if="comments.length" class="flex flex-col gap-4">
+    <Separator label="Comments" class="my-4" />
+    <Comment
+      v-for="(comment, i) in comments.slice(0, showCount)"
+      :key="i"
+      :comment="comment"
+    />
+    <div
+      v-if="comments.length > showCount"
+      class="flex w-full items-center gap-2 mt-2"
+    >
+      <Separator class="w-full flex-0" />
+      <Button variant="ghost" class="text-xs px-2 py-0" @click="showCount += 5">
+        Show comments ({{ comments.length - showCount }} more)
+      </Button>
+      <Separator class="w-full flex-0" />
     </div>
   </div>
 </template>
