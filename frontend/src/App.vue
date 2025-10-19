@@ -8,7 +8,7 @@ import { Button } from "./components/ui/button";
 const mode = useColorMode();
 
 const links = [
-  { name: "Search", path: "/search", icon: Search },
+  { name: "Posts", path: "/posts", icon: Search },
   { name: "Random", path: "/random", icon: Dices },
   { name: "About", path: "/about", icon: Info },
 ];

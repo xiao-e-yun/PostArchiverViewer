@@ -14,29 +14,34 @@ import {
   Tags,
   Users,
 } from "lucide-vue-next";
+import PageTitle from "@/components/utils/PageTitle.vue";
 
-const { data: summary } =
-  await useFetch("/api/summary").json<SummaryResponse>();
+const { data: summary } = useFetch("/api/summary").json<SummaryResponse>();
 </script>
 
 <template>
+  <PageTitle>About</PageTitle>
   <TooltipProvider as-child>
-    <div v-if="summary" class="flex flex-col md:flex-row gap-4">
-      <main class="flex-1">
-        <h1 class="text-4xl mb-4">Post Archiver Viewer</h1>
-        <a
-          href="https://github.com/xiao-e-yun/PostArchiverViewer"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Badge variant="secondary" class="mb-4">
-            <span class="flex items-center gap-2">
-              <GitCommitVertical />View on GitHub
-            </span>
-          </Badge>
-        </a>
+    <div class="flex flex-col md:flex-row gap-4">
+      <main class="flex-1 flex flex-col gap-2">
+        <h1 class="text-4xl">
+          Post Archiver Viewer
+          <a
+            href="https://github.com/xiao-e-yun/PostArchiverViewer"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Badge variant="secondary" class="mb-4">
+              <span class="flex items-center gap-1">
+                <GitCommitVertical />View on GitHub
+              </span>
+            </Badge>
+          </a>
+        </h1>
+
+        <p>An open-source viewer for Post Archiver.</p>
       </main>
-      <aside class="md:w-80 flex flex-col gap-4">
+      <aside v-if="summary" class="md:w-80 flex flex-col gap-4">
         <Card class="p-4 flex flex-col gap-2">
           <h1 class="text-xl font-bold mb-2">Summary</h1>
           <p class="flex gap-2">

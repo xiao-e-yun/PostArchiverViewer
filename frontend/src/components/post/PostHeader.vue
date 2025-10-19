@@ -5,12 +5,14 @@ import PostTags from "./PostTags.vue";
 import { Skeleton } from "../ui/skeleton";
 import DynamicImage from "../image/DynamicImage.vue";
 import { useLazyLoad } from "@/lazyload";
+import BackTo from "../utils/BackTo.vue";
 
 const { post, relations } = inject(postKey)!;
 </script>
 
 <template>
   <div class="capitalize relative">
+    <BackTo class="pb-0" />
     <h1 class="md:text-4xl text-2xl mt-4 font-bold text-center">
       <Skeleton v-if="!post" class="w-[12em] h-[32px] md:h-[40px] mx-auto" />
       <template v-else>{{ post.title }}</template>

@@ -1,18 +1,20 @@
 <script lang="ts" setup>
 import type { Category } from "@/api";
 import AuthorAliases from "@/components/AuthorAliases.vue";
+import BackTo from "@/components/utils/BackTo.vue";
 import DynamicImage from "@/components/image/DynamicImage.vue";
 import PostSearch from "@/components/search/PostSearch.vue";
+import type { SearchQuerys } from "@/components/search/search";
 import { Badge } from "@/components/ui/badge";
 import { useLazyLoad } from "@/lazyload";
 import { useFetchWithCache, useRelations } from "@/utils";
 import type { WithRelations } from "@api/WithRelations";
 import { useRouteParams } from "@vueuse/router";
-import { ChevronLeft } from "lucide-vue-next";
 import { computed } from "vue";
+import PageTitle from "@/components/utils/PageTitle.vue";
 
 export interface CategoryPostsContext {
-  category: string;
+  category: keyof SearchQuerys;
 }
 
 const props = defineProps<CategoryPostsContext>();
@@ -29,12 +31,10 @@ const relations = useRelations(data);
 
 <template>
   <div class="flex flex-col gap-2 mb-8 relative capitalize">
-    <RouterLink :to="`/${props.category}`" class="pb-4 inline-flex">
-      <ChevronLeft />
-      all {{ category }}
-    </RouterLink>
+    <BackTo :to="`/${props.category}`"> all {{ category }}</BackTo>
 
     <template v-if="data">
+      <PageTitle> {{ data.name }} </PageTitle>
       <RouterLink
         class="mr-auto ml-4 capitalize"
         :to="`/${props.category}/${id}`"

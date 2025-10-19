@@ -6,9 +6,8 @@ import { createRouter, createWebHistory } from "vue-router";
 import Home from "./pages/Home.vue";
 import Post from "./pages/Post.vue";
 import About from "./pages/About.vue";
-import Search from "./pages/Search.vue";
-import { loadPublicConfig } from "./api";
 import Posts from "./pages/Posts.vue";
+import { loadPublicConfig } from "./api";
 import type { CategoryPostsContext } from "./pages/CategoryPosts.vue";
 import Category from "./pages/Category.vue";
 import CategoryPosts from "./pages/CategoryPosts.vue";
@@ -25,7 +24,6 @@ import Random from "./pages/Random.vue";
     { path: "/", component: Home },
     { path: "/posts", component: Posts },
     { path: "/posts/:id", component: Post },
-    { path: "/search", component: Search },
     { path: "/random", component: Random },
     { path: "/about", component: About },
     ...categoryRouter("author", { category: "authors" }),

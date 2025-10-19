@@ -5,9 +5,14 @@ import { computed } from "vue";
 import { mergeWith, union } from "lodash";
 import { useSearchQuerys, type SearchQuerys } from "./search";
 
-const props = defineProps<{
-  defaults?: SearchQuerys;
-}>();
+const props = withDefaults(
+  defineProps<{
+    defaults?: Partial<SearchQuerys>;
+  }>(),
+  {
+    defaults: () => ({}),
+  },
+);
 
 const querys = useSearchQuerys();
 

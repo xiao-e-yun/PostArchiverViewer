@@ -6,6 +6,8 @@ import { useRouteParams } from "@vueuse/router";
 import type { WithRelations } from "@api/WithRelations";
 import type { PostResponse } from "@api/PostResponse";
 import { useFetchWithCache } from "@/utils";
+import BackTo from "@/components/utils/BackTo.vue";
+import PageTitle from "@/components/utils/PageTitle.vue";
 
 const id = useRouteParams("id", "0", { transform: Number });
 const url = computed(() => `/api/posts/${id.value}`);
@@ -17,6 +19,8 @@ const { data: post, statusCode } = useFetchWithCache<
 
 <template>
   <template v-if="statusCode === 404">
+    <PageTitle> Unknown Post </PageTitle>
+    <BackTo />
     <h1>Post not found</h1>
     <RouterLink to="/">Home</RouterLink>
   </template>

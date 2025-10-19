@@ -1,12 +1,14 @@
 <script lang="ts" setup>
+import BackTo from "@/components/utils/BackTo.vue";
 import PostSearch from "@/components/search/PostSearch.vue";
+import PageTitle from "@/components/utils/PageTitle.vue";
 </script>
 
 <template>
-  <div class="flex flex-col items-center gap-2 mb-8 relative">
-    <RouterLink class="mr-auto ml-4 capitalize" to="/posts">
-      <h1 class="text-4xl">Search</h1>
-    </RouterLink>
+  <PageTitle> Posts </PageTitle>
+  <div>
+    <BackTo />
+    <h1 class="text-4xl mb-4">Posts</h1>
+    <PostSearch />
   </div>
-  <PostSearch />
 </template>
