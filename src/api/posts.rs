@@ -226,8 +226,7 @@ fn bind_relation(
     let mut havings_with_params = vec![];
 
     if !authors.is_empty() {
-        joins.push("JOIN author_posts ON posts.id = author_posts.post");
-        filters.push("author_posts.author IN (SELECT value FROM json_each(?))");
+        joins.push("JOIN author_posts ON posts.id = author_posts.post AND author_posts.author IN (SELECT value FROM json_each(?))");
         params.push(serde_json::to_string(&authors).unwrap());
         if authors.len() > 1 {
             havings_with_params.push((
@@ -238,8 +237,7 @@ fn bind_relation(
     }
 
     if !tags.is_empty() {
-        joins.push("JOIN post_tags ON posts.id = post_tags.post");
-        filters.push("post_tags.tag IN (SELECT value FROM json_each(?))");
+        joins.push("JOIN post_tags ON posts.id = post_tags.post AND post_tags.tag IN (SELECT value FROM json_each(?))");
         params.push(serde_json::to_string(&tags).unwrap());
         if tags.len() > 1 {
             havings_with_params.push((
@@ -250,8 +248,7 @@ fn bind_relation(
     }
 
     if !collections.is_empty() {
-        joins.push("JOIN collection_posts ON posts.id = collection_posts.post");
-        filters.push("collection_posts.collection IN (SELECT value FROM json_each(?))");
+        joins.push("JOIN collection_posts ON posts.id = collection_posts.post AND collection_posts.collection IN (SELECT value FROM json_each(?))");
         params.push(serde_json::to_string(&collections).unwrap());
         if collections.len() > 1 {
             havings_with_params.push((
