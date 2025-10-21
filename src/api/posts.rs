@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "full-text-search")]
 use crate::config::Config;
-// #[cfg(feature = "full-text-search")]
+#[cfg(feature = "full-text-search")]
 use tracing::info;
 
 use super::{
@@ -202,8 +202,6 @@ fn prepare_search<'a>(
     let sql = format!(
         "SELECT id, title, updated, thumb FROM posts {joins} {filters} {havings} ORDER BY {order_by} LIMIT :limit OFFSET :offset",
     );
-    info!("Prepared SQL: {}", sql);
-    info!("With Params: {:?}", _params);
 
     connection.prepare_cached(&sql)
 }
