@@ -21,10 +21,10 @@ impl Pagination {
         self.page.unwrap_or(0)
     }
 
-    pub fn params(&self) -> [u32; 2] {
+    pub fn params(&self) -> [(&'static str, u32); 2] {
         let limit = self.limit();
         let page = self.page() * limit;
-        [limit, page]
+        [(":limit", limit), (":offset", page)]
     }
 }
 

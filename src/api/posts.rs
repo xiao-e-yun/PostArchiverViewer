@@ -1,20 +1,20 @@
-use axum::{extract::State, http::StatusCode, routing::get, Json, Router};
+use axum::{Json, Router, extract::State, http::StatusCode, routing::get};
 use axum_extra::extract::Query;
 use cached::Cached;
 use post_archiver::{AuthorId, CollectionId, PlatformId, TagId};
-use rusqlite::{params_from_iter, CachedStatement, Connection};
+use rusqlite::{CachedStatement, Connection, ToSql};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "full-text-search")]
 use crate::config::Config;
-#[cfg(feature = "full-text-search")]
+// #[cfg(feature = "full-text-search")]
 use tracing::info;
 
 use super::{
+    AppState,
     post::get_post_handler,
     relation::WithRelations,
     utils::{ListResponse, Pagination, PostPreview},
-    AppState,
 };
 
 pub fn wrap_posts_route(router: Router<AppState>) -> Router<AppState> {
@@ -103,7 +103,7 @@ type SearchContext = (
     Vec<&'static str>,
     Vec<&'static str>,
     Vec<&'static str>,
-    Vec<String>,
+    Vec<(&'static str, String)>,
 );
 pub async fn list_posts_handler(
     Query(pagination): Query<Pagination>,
@@ -114,7 +114,7 @@ pub async fn list_posts_handler(
     let conn = manager.conn();
 
     let mut context: SearchContext = (vec![], vec![], vec![], vec![]);
-    
+
     bind_search(&mut context, state.full_text_search(), &query.search);
     bind_relation(
         &mut context,
@@ -124,35 +124,48 @@ pub async fn list_posts_handler(
         &query.platforms,
     );
 
-    let mut stmt = prepare_search(&context, query.order_by, conn).unwrap();
+    let list = {
+        let mut stmt = prepare_search(&context, query.order_by, conn).unwrap();
 
-    let pagination = pagination.params().map(|p| p.to_string());
-    let params = params_from_iter(context.3.iter().chain(pagination.iter()));
+        let pagination = pagination.params().map(|(k, v)| (k, v.to_string()));
+        let params = [context.3.as_slice(), &pagination].concat();
 
-    let rows = stmt
-        .query_map(params.clone(), PostPreview::from_row)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        let params = params
+            .iter()
+            .map(|(k, v)| (*k, v as &dyn ToSql))
+            .collect::<Vec<_>>();
 
-    let list = rows
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        let rows = stmt
+            .query_map(params.as_slice(), PostPreview::from_row)
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let params = params_from_iter(context.3.iter());
-    let mut cache = state.caches.posts.lock().unwrap();
-    let total = match cache.cache_get(&query) {
-        Some(cached) => *cached,
-        None => {
-            let mut stmt = prepare_search_total(&context, conn).unwrap();
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    };
 
-            let total = match stmt.query_row(params, |row| row.get(0)) {
-                Ok(total) => total,
-                Err(rusqlite::Error::QueryReturnedNoRows) => 0,
-                Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
-            };
+    let total = {
+        let params = context.3
+            .iter()
+            .map(|(k, v)| (*k, v as &dyn ToSql))
+            .collect::<Vec<_>>();
 
-            cache.cache_set(query, total);
+        let mut cache = state.caches.posts.lock().unwrap();
 
-            total
+        match cache.cache_get(&query) {
+            Some(cached) => *cached,
+            None => {
+                let mut stmt = prepare_search_total(&context, conn).unwrap();
+
+                let total = match stmt.query_row(params.as_slice(), |row| row.get(0)) {
+                    Ok(total) => total,
+                    Err(rusqlite::Error::QueryReturnedNoRows) => 0,
+                    Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+                };
+
+                cache.cache_set(query, total);
+
+                total
+            }
         }
     };
 
@@ -186,9 +199,11 @@ fn prepare_search<'a>(
         PostOrderBy::Random => "RANDOM()",
     };
 
-    let sql  = format!(
-        "SELECT id, title, updated, thumb FROM posts {joins} {filters} {havings} ORDER BY {order_by} LIMIT ? OFFSET ?"
+    let sql = format!(
+        "SELECT id, title, updated, thumb FROM posts {joins} {filters} {havings} ORDER BY {order_by} LIMIT :limit OFFSET :offset",
     );
+    info!("Prepared SQL: {}", sql);
+    info!("With Params: {:?}", _params);
 
     connection.prepare_cached(&sql)
 }
@@ -223,51 +238,39 @@ fn bind_relation(
     collections: &[CollectionId],
     platforms: &[PlatformId],
 ) {
-    let mut havings_with_params = vec![];
-
     if !authors.is_empty() {
-        joins.push("JOIN author_posts ON posts.id = author_posts.post AND author_posts.author IN (SELECT value FROM json_each(?))");
-        params.push(serde_json::to_string(&authors).unwrap());
+        joins.push("JOIN author_posts ON posts.id = author_posts.post AND author_posts.author IN (SELECT value FROM json_each(:authors))");
+        params.push((":authors", serde_json::to_string(&authors).unwrap()));
         if authors.len() > 1 {
-            havings_with_params.push((
-                "COUNT(DISTINCT author_posts.author) == CAST(? AS INTEGER)",
-                authors.len(),
-            ));
+            havings.push("COUNT(DISTINCT author_posts.author) == CAST(:author_count AS INTEGER)");
+            params.push((":author_count", authors.len().to_string()));
         }
     }
 
     if !tags.is_empty() {
-        joins.push("JOIN post_tags ON posts.id = post_tags.post AND post_tags.tag IN (SELECT value FROM json_each(?))");
-        params.push(serde_json::to_string(&tags).unwrap());
+        joins.push("JOIN post_tags ON posts.id = post_tags.post AND post_tags.tag IN (SELECT value FROM json_each(:tags))");
+        params.push((":tags", serde_json::to_string(&tags).unwrap()));
+
         if tags.len() > 1 {
-            havings_with_params.push((
-                "COUNT(DISTINCT post_tags.tag) == CAST(? AS INTEGER)",
-                tags.len(),
-            ));
+            havings.push("COUNT(DISTINCT post_tags.tag) == CAST(:tag_count AS INTEGER)");
+            params.push((":tag_count", tags.len().to_string()));
         }
     }
 
     if !collections.is_empty() {
-        joins.push("JOIN collection_posts ON posts.id = collection_posts.post AND collection_posts.collection IN (SELECT value FROM json_each(?))");
-        params.push(serde_json::to_string(&collections).unwrap());
+        joins.push("JOIN collection_posts ON posts.id = collection_posts.post AND collection_posts.collection IN (SELECT value FROM json_each(:collections))");
+        params.push((":collections", serde_json::to_string(&collections).unwrap()));
         if collections.len() > 1 {
-            havings_with_params.push((
-                "COUNT(DISTINCT collection_posts.collection) == CAST(? AS INTEGER)",
-                collections.len(),
-            ));
+            havings.push(
+                "COUNT(DISTINCT collection_posts.collection) == CAST(:collection_count AS INTEGER)",
+            );
+            params.push((":collection_count", collections.len().to_string()));
         }
     }
 
     if !platforms.is_empty() {
-        filters.push("posts.platform IN (SELECT value FROM json_each(?))");
-        params.push(serde_json::to_string(&platforms).unwrap());
-    }
-
-    if !havings_with_params.is_empty() {
-        for (condition, count) in havings_with_params {
-            havings.push(condition);
-            params.push(count.to_string());
-        }
+        filters.push("posts.platform IN (SELECT value FROM json_each(:platform))");
+        params.push((":platform", serde_json::to_string(&platforms).unwrap()));
     }
 }
 
@@ -280,12 +283,12 @@ fn bind_search(
         return;
     }
 
-    params.push(search.to_string());
+    params.push((":search", search.trim().to_string()));
     match full_text_search {
         true => {
             joins.push("JOIN _posts_fts ON posts.id = _posts_fts.rowid");
-            filters.push("_posts_fts MATCH ?");
+            filters.push("_posts_fts MATCH :search");
         }
-        false => filters.push("posts.title LIKE concat('%', ?, '%')"),
+        false => filters.push("posts.title LIKE concat('%', :search, '%')"),
     };
 }

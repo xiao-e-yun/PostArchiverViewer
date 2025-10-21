@@ -6,22 +6,22 @@ pub mod tag;
 use std::{fmt::Debug, hash::Hash};
 
 use axum::{
+    Json, Router,
     extract::{Path, State},
     http::StatusCode,
     routing::get,
-    Json, Router,
 };
 use axum_extra::extract::Query;
 use cached::Cached;
 use post_archiver::manager::PostArchiverManager;
-use rusqlite::{params, OptionalExtension, Row, ToSql};
+use rusqlite::{OptionalExtension, Row, ToSql};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use super::{
+    AppState,
     relation::{RequireRelations, WithRelations},
     utils::{ListResponse, Pagination},
-    AppState,
 };
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -57,18 +57,15 @@ pub trait Category: RequireRelations + Serialize + Debug + TS + Sized + 'static 
         search: String,
         order_by: Option<CategoryOrderBy>,
     ) -> Result<Vec<Self>, rusqlite::Error> {
-        let [limit, offset] = pagination.params();
-        let (filter, params) = if search.is_empty() {
-            ("", params![limit, offset])
+        let params = pagination.params();
+        let (filter, search_params) = if search.is_empty() {
+            ("", None)
         } else {
-            (
-                "WHERE name LIKE concat('%',?,'%')",
-                params![search, limit, offset],
-            )
+            ("WHERE name LIKE concat('%',:search,'%')", Some(search))
         };
 
         let mut stmt = manager.conn().prepare_cached(&format!(
-            "SELECT * FROM {} {} {} LIMIT ? OFFSET ?",
+            "SELECT * FROM {} {} {} LIMIT :limit OFFSET :offset",
             Self::TABLE_NAME,
             filter,
             match (order_by.unwrap_or(Self::DEFAULT_ORDER_BY), Self::TABLE_NAME) {
@@ -80,7 +77,12 @@ pub trait Category: RequireRelations + Serialize + Debug + TS + Sized + 'static 
             }
         ))?;
 
-        let list = stmt.query_map(params, Self::from_row)?;
+        let params = params
+            .iter()
+            .map(|(k, v)| (*k, v as &dyn ToSql))
+            .chain(search_params.as_ref().map(|s| (":search", s as &dyn ToSql)))
+            .collect::<Vec<(&'static str, &dyn ToSql)>>();
+        let list = stmt.query_map(params.as_slice(), Self::from_row)?;
 
         list.collect()
     }
@@ -98,14 +100,9 @@ pub trait Category: RequireRelations + Serialize + Debug + TS + Sized + 'static 
             return stmt.query_row([search], |row| row.get(0));
         }
 
-        let mut cache = state
-            .caches
-            .tables
-            .lock()
-            .unwrap();
+        let mut cache = state.caches.tables.lock().unwrap();
 
-        if let Some(cached) = cache.cache_get(&Self::TABLE_NAME)
-        {
+        if let Some(cached) = cache.cache_get(&Self::TABLE_NAME) {
             return Ok(*cached);
         }
 
