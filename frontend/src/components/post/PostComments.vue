@@ -38,7 +38,7 @@ const [DefineComment, Comment] = createReusableTemplate<{
           />
           {{ comment.replies.length }} Replies
         </CollapsibleTrigger>
-        <CollapsibleContent as-child class="ml-10">
+        <CollapsibleContent class="ml-10">
           <Comment
             v-for="(reply, i) in comment.replies"
             :key="i"
