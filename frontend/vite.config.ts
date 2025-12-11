@@ -8,7 +8,6 @@ import tailwind from "tailwindcss";
 export default defineConfig({
   css: {
     postcss: {
-      //@ts-expect-error: tailwindcss is not a valid postcss plugin
       plugins: [tailwind(), autoprefixer()],
     },
   },
