@@ -1,3 +1,4 @@
+pub mod archive;
 pub mod category;
 pub mod post;
 pub mod posts;
@@ -78,7 +79,9 @@ pub fn get_api_router(config: &Config) -> Router<()> {
 
     let router = Router::new()
         .route("/summary", get(get_summary_api))
-        .route("/redirect", get(get_redirect_api));
+        .route("/redirect", get(get_redirect_api))
+        .route("/archive/:id", get(archive::list_archive_handler))
+        .route("/archive/:id/extract", get(archive::extract_file_handler));
 
     let router = posts::wrap_posts_route(router);
     let router = Tag::wrap_category_route(router);

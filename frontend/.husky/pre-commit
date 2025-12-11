@@ -1,2 +1,4 @@
+#!/bin/sh
+export PATH="$HOME/.bun/bin:$PATH"
 cd frontend
 bun lint-staged
