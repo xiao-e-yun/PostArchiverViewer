@@ -4,3 +4,4 @@ archiver
 /frontend/dist
 /bindings
 .env
+frontend/bun.lockb
