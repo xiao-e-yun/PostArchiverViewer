@@ -97,6 +97,16 @@ pub async fn extract_file_handler(
     Query(query): Query<ExtractQuery>,
     State(state): State<AppState>,
 ) -> Result<Response, StatusCode> {
+    // Validate the file path to prevent path traversal attacks
+    let path = std::path::Path::new(&query.file);
+    for component in path.components() {
+        match component {
+            std::path::Component::Normal(_) => continue,
+            // Reject any path with parent directory references or other unsafe components
+            _ => return Err(StatusCode::BAD_REQUEST),
+        }
+    }
+
     let file_path = get_file_path(&state, file_id)?;
     
     let file = std::fs::File::open(&file_path).map_err(|_| StatusCode::NOT_FOUND)?;
