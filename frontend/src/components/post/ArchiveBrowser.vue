@@ -48,15 +48,12 @@ function formatFileSize(bytes: number) {
 
 const selectedImage = ref<string | null>(null);
 const selectedImageName = ref<string>("");
+const imageDialogOpened = ref(false);
 
 function viewImage(entry: ArchiveEntry) {
   selectedImage.value = getExtractUrl(entry.name);
   selectedImageName.value = entry.name;
-}
-
-function closeImageDialog() {
-  selectedImage.value = null;
-  selectedImageName.value = "";
+  imageDialogOpened.value = true;
 }
 </script>
 
@@ -119,10 +116,8 @@ function closeImageDialog() {
   <!-- Image viewer dialog -->
   <DialogImage
     v-if="selectedImage"
+    v-model:opened="imageDialogOpened"
     :src="selectedImage"
-    :opened="!!selectedImage"
-    @update:opened="closeImageDialog"
   >
-    <template #title>{{ selectedImageName }}</template>
   </DialogImage>
 </template>
