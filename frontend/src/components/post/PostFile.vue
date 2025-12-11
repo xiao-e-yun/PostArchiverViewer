@@ -4,8 +4,9 @@ import { Card } from "../ui/card";
 import DialogImage from "../DialogImage.vue";
 import DialogTrigger from "../ui/dialog/DialogTrigger.vue";
 import DynamicImage from "../image/DynamicImage.vue";
+import ArchiveBrowser from "./ArchiveBrowser.vue";
 import { Badge } from "../ui/badge";
-import { ArrowDown, File } from "lucide-vue-next";
+import { ArrowDown, File, FileArchive } from "lucide-vue-next";
 import { getFileMetaPath } from "@/utils";
 import { computed, inject, ref } from "vue";
 import { postImagesKey } from "./utils";
@@ -34,6 +35,14 @@ function hasExtra(extra: FileMeta["extra"]) {
 
 function getExt(file: FileMeta) {
   return file.filename.slice(file.filename.indexOf("."));
+}
+
+function isCompressedFile(file: FileMeta) {
+  return (
+    file.mime === "application/zip" ||
+    file.mime === "application/x-zip-compressed" ||
+    file.filename.toLowerCase().endsWith(".zip")
+  );
 }
 
 const index = ref<FileMeta | null>(null);
@@ -100,6 +109,21 @@ function resetIndex(opened: boolean) {
       :src="getFileMetaPath(file)"
       controls
     />
+
+    <!-- Compressed file - show archive browser -->
+    <ArchiveBrowser v-else-if="isCompressedFile(file)" :file="file">
+      <div
+        class="sm:w-72 flex flex-col items-center p-4 gap-2 relative cursor-pointer hover:bg-accent/50 transition-colors rounded"
+      >
+        <div class="w-full h-full relative">
+          <FileArchive class="w-full h-full text-purple-500" />
+        </div>
+        <Badge class="py-1 px-2">
+          <FileArchive class="h-4 mr-1" />
+          View Archive
+        </Badge>
+      </div>
+    </ArchiveBrowser>
 
     <div v-else class="sm:w-72 flex flex-col items-center p-4 gap-2 relative">
       <div class="w-full h-full relative">
