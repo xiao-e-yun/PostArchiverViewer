@@ -44,5 +44,5 @@ qrcode = { version = "0.14.1", default-features = false }
 console = "0.15.11"
 time = "0.3.41"
 image-provider = "0.1.0"
-zip = "2.2.2"
+zip = "2.3.0"
 bytes = "1.9.0"
