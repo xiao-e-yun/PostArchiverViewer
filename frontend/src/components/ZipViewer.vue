@@ -23,6 +23,7 @@ const isOpen = computed({
 
 const zip = ref<JSZip | null>(null);
 const loading = ref(false);
+const loadingProgress = ref(0);
 const error = ref<string | null>(null);
 const fileTree = ref<ZipEntry[]>([]);
 const selectedFile = ref<ZipEntry | null>(null);
@@ -88,9 +89,10 @@ function buildFileTree(zipInstance: JSZip): ZipEntry[] {
   return root;
 }
 
-// Load zip from URL
+// Load zip from URL with progress tracking
 async function loadZipFromUrl(url: string) {
   loading.value = true;
+  loadingProgress.value = 0;
   error.value = null;
   selectedFile.value = null;
   previewContent.value = null;
@@ -101,10 +103,45 @@ async function loadZipFromUrl(url: string) {
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    const arrayBuffer = await response.arrayBuffer();
-    const zipInstance = await JSZip.loadAsync(arrayBuffer);
-    zip.value = zipInstance;
-    fileTree.value = buildFileTree(zipInstance);
+
+    // Get total size for progress tracking
+    const contentLength = response.headers.get("content-length");
+    const total = contentLength ? parseInt(contentLength, 10) : 0;
+
+    if (total && response.body) {
+      // Stream the response to track progress
+      const reader = response.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let received = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        chunks.push(value);
+        received += value.length;
+        loadingProgress.value = Math.round((received / total) * 100);
+      }
+
+      // Combine chunks into a single ArrayBuffer
+      const arrayBuffer = new Uint8Array(received);
+      let position = 0;
+      for (const chunk of chunks) {
+        arrayBuffer.set(chunk, position);
+        position += chunk.length;
+      }
+
+      const zipInstance = await JSZip.loadAsync(arrayBuffer);
+      zip.value = zipInstance;
+      fileTree.value = buildFileTree(zipInstance);
+    } else {
+      // Fallback: no content-length header, can't track progress
+      const arrayBuffer = await response.arrayBuffer();
+      loadingProgress.value = 100;
+      const zipInstance = await JSZip.loadAsync(arrayBuffer);
+      zip.value = zipInstance;
+      fileTree.value = buildFileTree(zipInstance);
+    }
   } catch {
     error.value =
       "Failed to load zip file. Please ensure it is a valid zip archive.";
@@ -112,6 +149,7 @@ async function loadZipFromUrl(url: string) {
     fileTree.value = [];
   } finally {
     loading.value = false;
+    loadingProgress.value = 0;
   }
 }
 
@@ -270,13 +308,20 @@ watch(isOpen, (open) => {
         <!-- Left: File Browser -->
         <div class="w-1/3 border-r flex flex-col overflow-hidden">
           <div class="flex-1 overflow-auto p-2">
-            <!-- Loading state -->
-            <div v-if="loading" class="flex flex-col gap-2 p-2">
-              <Skeleton class="h-6 w-full" />
-              <Skeleton class="h-6 w-3/4 ml-4" />
-              <Skeleton class="h-6 w-2/3 ml-4" />
-              <Skeleton class="h-6 w-full" />
-              <Skeleton class="h-6 w-4/5" />
+            <!-- Loading state with progress bar -->
+            <div v-if="loading" class="flex flex-col gap-4 p-4">
+              <div class="text-sm text-muted-foreground text-center">
+                Loading zip file...
+              </div>
+              <div class="w-full bg-muted rounded-full h-2.5 overflow-hidden">
+                <div
+                  class="bg-primary h-2.5 rounded-full transition-all duration-300"
+                  :style="{ width: `${loadingProgress}%` }"
+                />
+              </div>
+              <div class="text-xs text-muted-foreground text-center">
+                {{ loadingProgress }}%
+              </div>
             </div>
 
             <!-- Error state -->
