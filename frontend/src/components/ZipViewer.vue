@@ -4,12 +4,12 @@ import JSZip from "jszip";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { File, FolderOpen, ArrowDown, FileText, Image } from "lucide-vue-next";
-import { cn } from "@/lib/utils";
+import { File, ArrowDown, FileText, Image } from "lucide-vue-next";
 import ZipFileTreeItem, { type ZipEntry } from "./ZipFileTreeItem.vue";
 
 const props = defineProps<{
   open: boolean;
+  src: string;
 }>();
 
 const emit = defineEmits<{
@@ -88,12 +88,8 @@ function buildFileTree(zipInstance: JSZip): ZipEntry[] {
   return root;
 }
 
-// Handle file input
-async function handleFileSelect(event: Event) {
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
-  if (!file) return;
-
+// Load zip from URL
+async function loadZipFromUrl(url: string) {
   loading.value = true;
   error.value = null;
   selectedFile.value = null;
@@ -101,7 +97,11 @@ async function handleFileSelect(event: Event) {
   expandedFolders.value = new Set();
 
   try {
-    const arrayBuffer = await file.arrayBuffer();
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
     const zipInstance = await JSZip.loadAsync(arrayBuffer);
     zip.value = zipInstance;
     fileTree.value = buildFileTree(zipInstance);
@@ -112,7 +112,6 @@ async function handleFileSelect(event: Event) {
     fileTree.value = [];
   } finally {
     loading.value = false;
-    input.value = "";
   }
 }
 
@@ -245,9 +244,11 @@ function formatSize(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
 }
 
-// Reset when dialog closes
+// Load zip when dialog opens
 watch(isOpen, (open) => {
-  if (!open) {
+  if (open && props.src) {
+    loadZipFromUrl(props.src);
+  } else if (!open) {
     // Cleanup object URLs
     if (previewContent.value && isImage(selectedFile.value?.name || "")) {
       URL.revokeObjectURL(previewContent.value);
@@ -268,27 +269,6 @@ watch(isOpen, (open) => {
       <div class="flex-1 flex overflow-hidden">
         <!-- Left: File Browser -->
         <div class="w-1/3 border-r flex flex-col overflow-hidden">
-          <div class="p-3 border-b shrink-0">
-            <label
-              :class="
-                cn(
-                  'flex items-center justify-center gap-2 cursor-pointer',
-                  'px-4 py-2 rounded-md border border-input bg-background',
-                  'hover:bg-accent hover:text-accent-foreground transition-colors',
-                )
-              "
-            >
-              <FolderOpen class="w-4 h-4" />
-              <span>Open Zip File</span>
-              <input
-                type="file"
-                accept=".zip,application/zip"
-                class="hidden"
-                @change="handleFileSelect"
-              />
-            </label>
-          </div>
-
           <div class="flex-1 overflow-auto p-2">
             <!-- Loading state -->
             <div v-if="loading" class="flex flex-col gap-2 p-2">
@@ -309,8 +289,7 @@ watch(isOpen, (open) => {
               v-else-if="fileTree.length === 0"
               class="p-4 text-muted-foreground text-sm text-center"
             >
-              No zip file loaded.<br />
-              Click "Open Zip File" to get started.
+              Loading zip file...
             </div>
 
             <!-- File tree -->

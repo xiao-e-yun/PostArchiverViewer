@@ -1,22 +1,11 @@
 <script setup lang="ts">
-import {
-  Info,
-  Moon,
-  Package,
-  Search,
-  Sun,
-  Dices,
-  FolderArchive,
-} from "lucide-vue-next";
-import { ref } from "vue";
+import { Info, Moon, Package, Search, Sun, Dices } from "lucide-vue-next";
 
 import { useColorMode } from "@vueuse/core";
 import { RouterView } from "vue-router";
 import { Button } from "./components/ui/button";
-import ZipViewer from "./components/ZipViewer.vue";
 
 const mode = useColorMode();
-const zipViewerOpen = ref(false);
 
 const links = [
   { name: "Posts", path: "/posts", icon: Search },
@@ -37,10 +26,6 @@ const links = [
         >
       </RouterLink>
       <div class="flex w-full items-center gap-4 md:ml-auto justify-end">
-        <Button variant="outline" class="gap-2" @click="zipViewerOpen = true">
-          <FolderArchive class="w-4 h-4" />
-          <span class="hidden sm:inline">Open</span>
-        </Button>
         <RouterLink
           v-for="{ name, path, icon } in links"
           :key="path"
@@ -55,7 +40,6 @@ const links = [
         </Button>
       </div>
     </header>
-    <ZipViewer v-model:open="zipViewerOpen" />
     <main class="md:p-8 p-4">
       <RouterView v-slot="{ Component }">
         <KeepAlive>
