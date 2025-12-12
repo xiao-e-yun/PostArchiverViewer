@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, watch } from "vue";
 import JSZip from "jszip";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,19 +7,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { File, ArrowDown, FileText, Image } from "lucide-vue-next";
 import ZipFileTreeItem, { type ZipEntry } from "./ZipFileTreeItem.vue";
 
+const opened = defineModel<boolean>("open");
+
 const props = defineProps<{
-  open: boolean;
   src: string;
 }>();
-
-const emit = defineEmits<{
-  "update:open": [value: boolean];
-}>();
-
-const isOpen = computed({
-  get: () => props.open,
-  set: (value) => emit("update:open", value),
-});
 
 const zip = ref<JSZip | null>(null);
 const loading = ref(false);
@@ -147,20 +139,15 @@ async function loadZipFromUrl(url: string) {
       "Failed to load zip file. Please ensure it is a valid zip archive.";
     zip.value = null;
     fileTree.value = [];
-  } finally {
-    loading.value = false;
-    loadingProgress.value = 0;
   }
+  loading.value = false;
 }
 
 // Toggle folder expansion
 function toggleFolder(path: string) {
   const newSet = new Set(expandedFolders.value);
-  if (newSet.has(path)) {
-    newSet.delete(path);
-  } else {
-    newSet.add(path);
-  }
+  if (newSet.has(path)) newSet.delete(path);
+  else newSet.add(path);
   expandedFolders.value = newSet;
 }
 
@@ -283,7 +270,7 @@ function formatSize(bytes: number): string {
 }
 
 // Load zip when dialog opens
-watch(isOpen, (open) => {
+watch(opened, (open) => {
   if (open && props.src) {
     loadZipFromUrl(props.src);
   } else if (!open) {
@@ -302,7 +289,7 @@ watch(isOpen, (open) => {
 </script>
 
 <template>
-  <Dialog v-model:open="isOpen">
+  <Dialog v-model:open="opened">
     <DialogContent class="max-w-5xl w-[90vw] h-[80vh] flex flex-col p-0 gap-0">
       <div class="flex-1 flex overflow-hidden">
         <!-- Left: File Browser -->

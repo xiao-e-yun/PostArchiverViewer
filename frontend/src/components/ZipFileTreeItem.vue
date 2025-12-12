@@ -26,19 +26,12 @@ const isExpanded = computed(() => props.expandedFolders.has(props.entry.path));
 const isSelected = computed(() => props.selectedPath === props.entry.path);
 
 function handleClick() {
-  if (props.entry.isDirectory) {
-    emit("toggle", props.entry.path);
-  }
+  if (props.entry.isDirectory) emit("toggle", props.entry.path);
   emit("select", props.entry);
 }
 
-function handleChildSelect(entry: ZipEntry) {
-  emit("select", entry);
-}
-
-function handleChildToggle(path: string) {
-  emit("toggle", path);
-}
+const handleChildSelect = (entry: ZipEntry) => emit("select", entry);
+const handleChildToggle = (path: string) => emit("toggle", path);
 </script>
 
 <template>
