@@ -14,7 +14,9 @@ import { File, ArrowDown, FileText, Image } from "lucide-vue-next";
 import ZipFileTreeItem, { type ZipEntry } from "./ZipFileTreeItem.vue";
 import { onUnmounted } from "vue";
 
-const opened = defineModel<boolean>("open");
+const opened = defineModel<boolean>("open", {
+  required: true,
+});
 
 const props = defineProps<{
   src: string;
