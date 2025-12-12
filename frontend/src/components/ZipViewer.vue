@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { File, ArrowDown, FileText, Image } from "lucide-vue-next";
 import ZipFileTreeItem, { type ZipEntry } from "./ZipFileTreeItem.vue";
+import { onUnmounted } from "vue";
 
 const opened = defineModel<boolean>("open");
 
@@ -290,6 +291,12 @@ watch(opened, (open) => {
     error.value = null;
     expandedFolders.value = new Set();
   }
+});
+
+onUnmounted(() => {
+  if (abortController) abortController.abort();
+  if (previewContent.value && isImage(selectedFile.value?.name || ""))
+    URL.revokeObjectURL(previewContent.value);
 });
 </script>
 
