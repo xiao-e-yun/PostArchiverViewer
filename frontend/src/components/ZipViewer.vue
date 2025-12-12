@@ -321,38 +321,6 @@ watch(isOpen, (open) => {
           </div>
 
           <template v-else>
-            <!-- Preview header -->
-            <div
-              class="p-3 border-b flex items-center justify-between shrink-0"
-            >
-              <div class="flex items-center gap-2 min-w-0">
-                <Image
-                  v-if="isImage(selectedFile.name)"
-                  class="w-4 h-4 shrink-0"
-                />
-                <FileText
-                  v-else-if="isText(selectedFile.name)"
-                  class="w-4 h-4 shrink-0"
-                />
-                <File v-else class="w-4 h-4 shrink-0" />
-                <span class="truncate text-sm font-medium">{{
-                  selectedFile.name
-                }}</span>
-                <span class="text-xs text-muted-foreground shrink-0">
-                  ({{ formatSize(selectedFile.size) }})
-                </span>
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                class="shrink-0 gap-1"
-                @click="downloadFile(selectedFile)"
-              >
-                <ArrowDown class="w-4 h-4" />
-                Download
-              </Button>
-            </div>
-
             <!-- Preview content -->
             <div class="flex-1 overflow-auto">
               <!-- Loading preview -->
@@ -400,6 +368,37 @@ watch(isOpen, (open) => {
                   </Button>
                 </div>
               </div>
+            </div>
+            <!-- Preview footer -->
+            <div
+              class="p-3 border-t flex items-center justify-between shrink-0"
+            >
+              <div class="flex items-center gap-2 min-w-0">
+                <Image
+                  v-if="isImage(selectedFile.name)"
+                  class="w-4 h-4 shrink-0"
+                />
+                <FileText
+                  v-else-if="isText(selectedFile.name)"
+                  class="w-4 h-4 shrink-0"
+                />
+                <File v-else class="w-4 h-4 shrink-0" />
+                <span class="truncate text-sm font-medium">{{
+                  selectedFile.name
+                }}</span>
+                <span class="text-xs text-muted-foreground shrink-0">
+                  ({{ formatSize(selectedFile.size) }})
+                </span>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                class="shrink-0 gap-1 pr-6"
+                @click="downloadFile(selectedFile)"
+              >
+                <ArrowDown class="w-4 h-4" />
+                Download
+              </Button>
             </div>
           </template>
         </div>
