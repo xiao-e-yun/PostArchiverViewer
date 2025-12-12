@@ -1,13 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import JSZip from "jszip";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { File, FolderOpen, ArrowDown, FileText, Image } from "lucide-vue-next";
@@ -35,7 +29,6 @@ const selectedFile = ref<ZipEntry | null>(null);
 const previewContent = ref<string | null>(null);
 const previewLoading = ref(false);
 const expandedFolders = ref<Set<string>>(new Set());
-const zipFileName = ref<string>("");
 
 // Build file tree from zip
 function buildFileTree(zipInstance: JSZip): ZipEntry[] {
@@ -106,7 +99,6 @@ async function handleFileSelect(event: Event) {
   selectedFile.value = null;
   previewContent.value = null;
   expandedFolders.value = new Set();
-  zipFileName.value = file.name;
 
   try {
     const arrayBuffer = await file.arrayBuffer();
@@ -266,7 +258,6 @@ watch(isOpen, (open) => {
     previewContent.value = null;
     error.value = null;
     expandedFolders.value = new Set();
-    zipFileName.value = "";
   }
 });
 </script>
@@ -274,22 +265,6 @@ watch(isOpen, (open) => {
 <template>
   <Dialog v-model:open="isOpen">
     <DialogContent class="max-w-5xl w-[90vw] h-[80vh] flex flex-col p-0 gap-0">
-      <DialogHeader class="p-4 border-b shrink-0">
-        <DialogTitle class="flex items-center gap-2">
-          <File class="w-5 h-5" />
-          Zip Viewer
-          <span
-            v-if="zipFileName"
-            class="text-muted-foreground text-sm font-normal"
-          >
-            - {{ zipFileName }}
-          </span>
-        </DialogTitle>
-        <DialogDescription>
-          Open a zip file to browse and preview its contents
-        </DialogDescription>
-      </DialogHeader>
-
       <div class="flex-1 flex overflow-hidden">
         <!-- Left: File Browser -->
         <div class="w-1/3 border-r flex flex-col overflow-hidden">
