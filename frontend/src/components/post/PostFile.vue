@@ -5,10 +5,11 @@ import DialogImage from "../DialogImage.vue";
 import DialogTrigger from "../ui/dialog/DialogTrigger.vue";
 import DynamicImage from "../image/DynamicImage.vue";
 import { Badge } from "../ui/badge";
-import { ArrowDown, File } from "lucide-vue-next";
+import { ArrowDown, File, FolderArchive } from "lucide-vue-next";
 import { getFileMetaPath } from "@/utils";
 import { computed, inject, ref } from "vue";
 import { postImagesKey } from "./utils";
+import ZipViewer from "../ZipViewer.vue";
 
 const props = defineProps<{
   file: FileMeta;
@@ -36,6 +37,14 @@ function getExt(file: FileMeta) {
   return file.filename.slice(file.filename.indexOf("."));
 }
 
+function isZipFile(file: FileMeta) {
+  return (
+    file.mime === "application/zip" ||
+    file.mime === "application/x-zip-compressed" ||
+    file.filename.toLowerCase().endsWith(".zip")
+  );
+}
+
 const index = ref<FileMeta | null>(null);
 function switchImage(prev: boolean) {
   const currentId = index.value ? index.value.id : props.file.id;
@@ -56,6 +65,9 @@ function resetIndex(opened: boolean) {
   if (!opened) return;
   index.value = null;
 }
+
+// Zip viewer state
+const zipViewerOpen = ref(false);
 </script>
 
 <template>
@@ -100,6 +112,22 @@ function resetIndex(opened: boolean) {
       :src="getFileMetaPath(file)"
       controls
     />
+
+    <!-- Zip file viewer -->
+    <div
+      v-else-if="isZipFile(file)"
+      class="sm:w-72 flex flex-col items-center p-4 gap-2 relative cursor-pointer"
+      @click="zipViewerOpen = true"
+    >
+      <div class="w-full h-full relative">
+        <FolderArchive class="w-full h-full" />
+      </div>
+      <Badge class="py-1 px-2">
+        <FolderArchive class="h-4" />
+        {{ file.filename }}
+      </Badge>
+      <ZipViewer v-model:open="zipViewerOpen" :src="getFileMetaPath(file)" />
+    </div>
 
     <div v-else class="sm:w-72 flex flex-col items-center p-4 gap-2 relative">
       <div class="w-full h-full relative">

@@ -11,7 +11,7 @@ use dotenv::dotenv;
 use frontend::frontend;
 use image_provider::get_images_router;
 use local_ip_address::local_ip;
-use qrcode::{render::unicode, QrCode};
+use qrcode::{QrCode, render::unicode};
 use resource::get_resource_router;
 use std::net::SocketAddr;
 use tower::ServiceBuilder;
@@ -62,13 +62,13 @@ async fn main() {
 
     let app = frontend(&config.public)
         .nest("/api", api_router)
+        .layer(CompressionLayer::new())
         .nest("/images", images_router)
         .nest("/resource", resource_router)
         .layer(
             ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())
                 .layer(CorsLayer::new().allow_origin(Any))
-                .layer(CompressionLayer::new()),
         );
 
     let port = config.port;
