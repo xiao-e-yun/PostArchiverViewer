@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import JSZip from "jszip";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { File, ArrowDown, FileText, Image } from "lucide-vue-next";
@@ -82,6 +88,7 @@ function buildFileTree(zipInstance: JSZip): ZipEntry[] {
 }
 
 // Load zip from URL with progress tracking
+let abortController: null | AbortController = null;
 async function loadZipFromUrl(url: string) {
   loading.value = true;
   loadingProgress.value = 0;
@@ -91,14 +98,17 @@ async function loadZipFromUrl(url: string) {
   expandedFolders.value = new Set();
 
   try {
-    const response = await fetch(url);
+    if (abortController) abortController.abort();
+    abortController = new AbortController();
+    const response = await fetch(url, {
+      signal: abortController.signal,
+    });
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     // Get total size for progress tracking
     const contentLength = response.headers.get("content-length");
-    console.log("Content-Length:", response.headers);
     const total = contentLength ? parseInt(contentLength, 10) : 0;
 
     // Stream the response to track progress
@@ -126,7 +136,10 @@ async function loadZipFromUrl(url: string) {
     const zipInstance = await JSZip.loadAsync(arrayBuffer);
     zip.value = zipInstance;
     fileTree.value = buildFileTree(zipInstance);
-  } catch {
+  } catch (e: unknown) {
+    // Fetch was aborted, do nothing
+    if ((e as Error)?.name === "AbortError") return;
+
     error.value =
       "Failed to load zip file. Please ensure it is a valid zip archive.";
     zip.value = null;
@@ -283,6 +296,13 @@ watch(opened, (open) => {
 <template>
   <Dialog v-model:open="opened">
     <DialogContent class="max-w-5xl w-[90vw] h-[80vh] flex flex-col p-0 gap-0">
+      <DialogHeader class="sr-only">
+        <DialogTitle>Zip File Viewer</DialogTitle>
+        <DialogDescription>
+          Browse and preview files within the zip archive.
+        </DialogDescription>
+      </DialogHeader>
+
       <div class="flex-1 flex overflow-hidden">
         <!-- Left: File Browser -->
         <div class="w-1/3 border-r flex flex-col overflow-hidden">
