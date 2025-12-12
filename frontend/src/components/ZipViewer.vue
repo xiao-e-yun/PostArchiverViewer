@@ -98,42 +98,34 @@ async function loadZipFromUrl(url: string) {
 
     // Get total size for progress tracking
     const contentLength = response.headers.get("content-length");
+    console.log("Content-Length:", response.headers);
     const total = contentLength ? parseInt(contentLength, 10) : 0;
 
-    if (total && response.body) {
-      // Stream the response to track progress
-      const reader = response.body.getReader();
-      const chunks: Uint8Array[] = [];
-      let received = 0;
+    // Stream the response to track progress
+    const reader = response.body!.getReader();
+    const chunks: Uint8Array[] = [];
+    let received = 0;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
 
-        chunks.push(value);
-        received += value.length;
-        loadingProgress.value = Math.round((received / total) * 100);
-      }
-
-      // Combine chunks into a single ArrayBuffer
-      const arrayBuffer = new Uint8Array(received);
-      let position = 0;
-      for (const chunk of chunks) {
-        arrayBuffer.set(chunk, position);
-        position += chunk.length;
-      }
-
-      const zipInstance = await JSZip.loadAsync(arrayBuffer);
-      zip.value = zipInstance;
-      fileTree.value = buildFileTree(zipInstance);
-    } else {
-      // Fallback: no content-length header, can't track progress
-      const arrayBuffer = await response.arrayBuffer();
-      loadingProgress.value = 100;
-      const zipInstance = await JSZip.loadAsync(arrayBuffer);
-      zip.value = zipInstance;
-      fileTree.value = buildFileTree(zipInstance);
+      chunks.push(value);
+      received += value.length;
+      loadingProgress.value = Math.round((received / total) * 100);
     }
+
+    // Combine chunks into a single ArrayBuffer
+    const arrayBuffer = new Uint8Array(received);
+    let position = 0;
+    for (const chunk of chunks) {
+      arrayBuffer.set(chunk, position);
+      position += chunk.length;
+    }
+
+    const zipInstance = await JSZip.loadAsync(arrayBuffer);
+    zip.value = zipInstance;
+    fileTree.value = buildFileTree(zipInstance);
   } catch {
     error.value =
       "Failed to load zip file. Please ensure it is a valid zip archive.";
@@ -295,33 +287,13 @@ watch(opened, (open) => {
         <!-- Left: File Browser -->
         <div class="w-1/3 border-r flex flex-col overflow-hidden">
           <div class="flex-1 overflow-auto p-2">
-            <!-- Loading state with progress bar -->
-            <div v-if="loading" class="flex flex-col gap-4 p-4">
-              <div class="text-sm text-muted-foreground text-center">
-                Loading zip file...
-              </div>
-              <div class="w-full bg-muted rounded-full h-2.5 overflow-hidden">
-                <div
-                  class="bg-primary h-2.5 rounded-full transition-all duration-300"
-                  :style="{ width: `${loadingProgress}%` }"
-                />
-              </div>
-              <div class="text-xs text-muted-foreground text-center">
-                {{ loadingProgress }}%
-              </div>
-            </div>
-
-            <!-- Error state -->
-            <div v-else-if="error" class="p-4 text-destructive text-sm">
-              {{ error }}
-            </div>
-
-            <!-- Empty state -->
-            <div
-              v-else-if="fileTree.length === 0"
-              class="p-4 text-muted-foreground text-sm text-center"
-            >
-              Loading zip file...
+            <!-- Loading skeletons -->
+            <div v-if="loading" class="flex flex-col gap-2 p-2">
+              <Skeleton class="h-6 w-full" />
+              <Skeleton class="h-6 w-3/4 ml-4" />
+              <Skeleton class="h-6 w-2/3 ml-4" />
+              <Skeleton class="h-6 w-full" />
+              <Skeleton class="h-6 w-4/5" />
             </div>
 
             <!-- File tree -->
@@ -342,8 +314,29 @@ watch(opened, (open) => {
 
         <!-- Right: Preview Pane -->
         <div class="w-2/3 flex flex-col overflow-hidden">
+          <!-- Loading state with progress bar -->
           <div
-            v-if="!selectedFile"
+            v-if="loading"
+            class="flex flex-col gap-4 p-4 h-full justify-center"
+          >
+            <div class="text-sm text-muted-foreground text-center">
+              Loading zip file...
+            </div>
+            <div class="w-full bg-muted rounded-full h-2.5 overflow-hidden">
+              <div
+                class="bg-primary h-2.5 rounded-full transition-all"
+                :style="{ width: `${loadingProgress}%` }"
+              />
+            </div>
+          </div>
+
+          <!-- Error state -->
+          <div v-else-if="error" class="p-4 text-destructive text-sm">
+            {{ error }}
+          </div>
+
+          <div
+            v-else-if="!selectedFile"
             class="flex-1 flex items-center justify-center text-muted-foreground"
           >
             <div class="text-center">
@@ -403,7 +396,7 @@ watch(opened, (open) => {
             </div>
             <!-- Preview footer -->
             <div
-              class="p-3 border-t flex items-center justify-between shrink-0"
+              class="p-3 border-t flex items-center justify-between shrink-0 gap-2"
             >
               <div class="flex items-center gap-2 min-w-0">
                 <Image
@@ -425,11 +418,11 @@ watch(opened, (open) => {
               <Button
                 size="sm"
                 variant="outline"
-                class="shrink-0 gap-1 pr-6"
+                class="shrink-0 gap-1"
                 @click="downloadFile(selectedFile)"
               >
                 <ArrowDown class="w-4 h-4" />
-                Download
+                <span class="hidden sm:inline">Download</span>
               </Button>
             </div>
           </template>
