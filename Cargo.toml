@@ -30,7 +30,7 @@ tower-http = { version = "0.6.2", features = [
     "trace",
 ] }
 tracing = "0.1.41"
-tracing-subscriber = { version = "=0.3.19", features = ["time"] }
+tracing-subscriber = { version = "=0.3.20", features = ["time"] }
 chrono = "0.4.39"
 clap = { version = "4.5.26", features = ["derive", "env"] }
 ts-rs = { version = "10.1.0" }
