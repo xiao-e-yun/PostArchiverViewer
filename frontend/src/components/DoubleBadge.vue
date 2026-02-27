@@ -20,7 +20,11 @@ const slots = defineSlots<{
     :style="{ 'padding-left': slots.secondary && '0' }"
     as-child
   >
-    <component :is="link ? 'a' : 'div'" :href="link">
+    <component
+      :is="link ? 'a' : 'div'"
+      :href="link"
+      :target="link ? '_blank' : undefined"
+    >
       <Badge v-if="slots.secondary" as-child class="mr-1 text-[length:inherit]">
         <component
           :is="secondaryLink ? RouterLink : 'div'"
