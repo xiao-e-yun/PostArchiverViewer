@@ -71,7 +71,7 @@ pub trait Category: RequireRelations + Serialize + Debug + TS + Sized + 'static 
             match (order_by.unwrap_or(Self::DEFAULT_ORDER_BY), Self::TABLE_NAME) {
                 (CategoryOrderBy::Id, _) => "ORDER BY id DESC",
                 (CategoryOrderBy::Name, _) => "ORDER BY name ASC",
-                (CategoryOrderBy::Updated, "author") => "ORDER BY updated DESC",
+                (CategoryOrderBy::Updated, "authors" | "posts") => "ORDER BY updated DESC",
                 (CategoryOrderBy::Updated, _) => "ORDER BY id DESC", // Fallback to id
                 (CategoryOrderBy::Random, _) => "ORDER BY RANDOM()",
             }
