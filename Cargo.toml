@@ -5,14 +5,8 @@ edition = "2024"
 
 [features]
 default = []
-full = ["full-text-search"]
-full-text-search = [
-    "dep:libsimple",
-    "dep:tempfile",
-]
-
 [dependencies]
-post-archiver = { version = "0.4.3", features = ["utils", "typescript"] }
+post-archiver = { version = "0.5.4", features = ["utils", "typescript"] }
 axum = { version = "0.8.1", features = [ "macros" ] }
 axum-reverse-proxy = "0.5.1"
 mime_guess = "2.0.5"
@@ -30,14 +24,12 @@ tower-http = { version = "0.6.2", features = [
     "trace",
 ] }
 tracing = "0.1.41"
-tracing-subscriber = { version = "=0.3.20", features = ["time"] }
+tracing-subscriber = { version = "=0.3.19", features = ["time"] }
 chrono = "0.4.39"
 clap = { version = "4.5.26", features = ["derive", "env"] }
 ts-rs = { version = "10.1.0" }
 dotenv = "0.15.0"
 axum-extra = { version = "0.10.0", features = ["query"] }
-libsimple =  { version = "0.3", optional = true }
-tempfile =  { version = "3.17.1", optional = true }
 cached = "0.54.0"
 local-ip-address = "0.6.3"
 qrcode = { version = "0.14.1", default-features = false }

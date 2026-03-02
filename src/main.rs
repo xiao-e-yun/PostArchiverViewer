@@ -68,7 +68,7 @@ async fn main() {
         .layer(
             ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())
-                .layer(CorsLayer::new().allow_origin(Any))
+                .layer(CorsLayer::new().allow_origin(Any)),
         );
 
     let port = config.port;

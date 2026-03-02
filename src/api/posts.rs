@@ -5,11 +5,6 @@ use post_archiver::{AuthorId, CollectionId, PlatformId, TagId};
 use rusqlite::{CachedStatement, Connection, ToSql};
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "full-text-search")]
-use crate::config::Config;
-#[cfg(feature = "full-text-search")]
-use tracing::info;
-
 use super::{
     AppState,
     post::get_post_handler,
@@ -21,57 +16,6 @@ pub fn wrap_posts_route(router: Router<AppState>) -> Router<AppState> {
     router
         .route("/posts", get(list_posts_handler))
         .route("/posts/{id}", get(get_post_handler))
-}
-
-#[cfg(feature = "full-text-search")]
-use post_archiver::manager::PostArchiverManager;
-
-#[cfg(feature = "full-text-search")]
-pub fn sync_text_search(config: &Config, manager: &mut PostArchiverManager) -> bool {
-    let old_status = manager
-        .get_feature("PostArchiverViewer:SearchFullText")
-        .unwrap_or(0)
-        != 0;
-
-    let status = config.futures.full_text_search.unwrap_or(old_status);
-    let changed = old_status != status;
-
-    info!(
-        "search-full-text: {} {}",
-        if status { "enabled" } else { "disabled" },
-        if changed { "(changed)" } else { "" }
-    );
-
-    if changed {
-        let transaction = manager.transaction().unwrap();
-        transaction.set_feature("PostArchiverViewer:SearchFullText", status as i64);
-
-        let conn = transaction.conn();
-        if status {
-            info!("creating search table");
-            conn.execute_batch(
-                        "CREATE VIRTUAL TABLE _posts_fts USING fts5(title, content, content=posts, content_rowid=id, tokenize = 'simple');"
-                    )
-                    .unwrap();
-        } else {
-            info!("delete search table");
-            conn.execute_batch("DROP TABLE _posts_fts;").unwrap();
-        }
-        transaction.commit().unwrap();
-
-        info!("cleanup database");
-        manager.conn().execute_batch("VACUUM;").unwrap();
-    }
-
-    if status {
-        info!("rebuilt full-text search");
-        manager
-            .conn()
-            .execute_batch("INSERT INTO _posts_fts(_posts_fts) VALUES('rebuild');")
-            .unwrap();
-    }
-
-    status
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, Default)]
@@ -115,7 +59,7 @@ pub async fn list_posts_handler(
 
     let mut context: SearchContext = (vec![], vec![], vec![], vec![]);
 
-    bind_search(&mut context, state.full_text_search(), &query.search);
+    bind_search(&mut context, &query.search);
     bind_relation(
         &mut context,
         &query.authors,
@@ -144,7 +88,8 @@ pub async fn list_posts_handler(
     };
 
     let total = {
-        let params = context.3
+        let params = context
+            .3
             .iter()
             .map(|(k, v)| (*k, v as &dyn ToSql))
             .collect::<Vec<_>>();
@@ -272,21 +217,11 @@ fn bind_relation(
     }
 }
 
-fn bind_search(
-    (joins, filters, _havings, params): &mut SearchContext,
-    full_text_search: bool,
-    search: &str,
-) {
+fn bind_search((_joins, filters, _havings, params): &mut SearchContext, search: &str) {
     if search.is_empty() {
         return;
     }
 
     params.push((":search", search.trim().to_string()));
-    match full_text_search {
-        true => {
-            joins.push("JOIN _posts_fts ON posts.id = _posts_fts.rowid");
-            filters.push("_posts_fts MATCH :search");
-        }
-        false => filters.push("posts.title LIKE concat('%', :search, '%')"),
-    };
+    filters.push("posts.title LIKE concat('%', :search, '%')");
 }

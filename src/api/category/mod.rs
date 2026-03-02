@@ -13,8 +13,8 @@ use axum::{
 };
 use axum_extra::extract::Query;
 use cached::Cached;
-use post_archiver::manager::PostArchiverManager;
-use rusqlite::{OptionalExtension, Row, ToSql};
+use post_archiver::{manager::PostArchiverManager, utils::AsTable};
+use rusqlite::{OptionalExtension, ToSql};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -33,11 +33,9 @@ pub enum CategoryOrderBy {
     Random,
 }
 
-pub trait Category: RequireRelations + Serialize + Debug + TS + Sized + 'static {
+pub trait Category: RequireRelations + Serialize + AsTable + Debug + TS + Sized + 'static {
     type Id: From<u32> + Debug + Serialize + ToSql + Copy + Eq + Hash + Sync + Send + 'static;
-    const TABLE_NAME: &'static str;
     const DEFAULT_ORDER_BY: CategoryOrderBy = CategoryOrderBy::Name;
-    fn from_row(row: &Row) -> Result<Self, rusqlite::Error>;
 
     fn wrap_category_route(router: Router<AppState>) -> Router<AppState> {
         router

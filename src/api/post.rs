@@ -1,13 +1,12 @@
 use axum::{
+    Json,
     extract::{Path, State},
     http::StatusCode,
-    Json,
 };
 use chrono::{DateTime, Utc};
 use post_archiver::{
-    Author, Collection, Comment, Content, FileMetaId, PlatformId, Post, PostId, Tag,
+    Author, Collection, Comment, Content, FileMetaId, PlatformId, PostId, Tag, query::Query,
 };
-use rusqlite::OptionalExtension;
 use serde::Serialize;
 use ts_rs::TS;
 
@@ -61,29 +60,43 @@ pub async fn get_post_handler(
 ) -> Result<Json<WithRelations<PostResponse>>, StatusCode> {
     let manager = state.manager();
 
-    let mut stmt = manager
-        .conn()
-        .prepare_cached("SELECT * FROM posts WHERE id = ?")
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    let Some(post) = stmt
-        .query_row([id], Post::from_row)
-        .optional()
+    let Some(post) = manager
+        .get_post(id)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
     else {
         return Err(StatusCode::NOT_FOUND);
     };
 
-    let tags = manager
-        .list_post_tags(&id)
+    let binded_post = manager.bind(id);
+
+    let mut tags = manager.tags();
+    tags.ids.extend(
+        binded_post
+            .list_tags()
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+    );
+    let tags = tags
+        .query()
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let authors = manager
-        .list_post_authors(&id)
+    let mut authors = manager.authors();
+    authors.ids.extend(
+        binded_post
+            .list_authors()
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+    );
+    let authors = authors
+        .query()
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let collections = manager
-        .list_post_collections(&id)
+    let mut collections = manager.collections();
+    collections.ids.extend(
+        binded_post
+            .list_collections()
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+    );
+    let collections = collections
+        .query()
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     WithRelations::new(

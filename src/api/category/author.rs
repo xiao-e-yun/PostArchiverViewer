@@ -1,17 +1,16 @@
 use axum::{
+    Json, Router,
     extract::{Path, State},
     http::StatusCode,
     routing::get,
-    Json, Router,
 };
-use post_archiver::{Alias, Author, AuthorId, PlatformId};
-use rusqlite::Row;
+use post_archiver::{Alias, Author, AuthorId, PlatformId, utils::AsTable};
 
 use crate::api::{
+    AppState,
     category::{get_category_handler, list_category_handler},
     relation::{RequireRelations, WithRelations},
     utils::ListResponse,
-    AppState,
 };
 
 use super::{Category, CategoryOrderBy};
@@ -24,12 +23,7 @@ impl RequireRelations for Author {
 
 impl Category for Author {
     type Id = AuthorId;
-    const TABLE_NAME: &'static str = "authors";
     const DEFAULT_ORDER_BY: CategoryOrderBy = CategoryOrderBy::Updated;
-
-    fn from_row(row: &Row) -> Result<Self, rusqlite::Error> {
-        Author::from_row(row)
-    }
 
     fn wrap_category_route(router: Router<AppState>) -> Router<AppState> {
         router

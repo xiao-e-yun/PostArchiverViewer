@@ -1,4 +1,4 @@
-use axum::{http::StatusCode, Router};
+use axum::{Router, http::StatusCode};
 use tower_http::services::ServeDir;
 use tracing::info;
 

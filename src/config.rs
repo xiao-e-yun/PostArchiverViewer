@@ -16,9 +16,6 @@ pub struct Config {
     pub public: PublicConfig,
 
     #[clap(flatten)]
-    pub futures: FutureConfig,
-
-    #[clap(flatten)]
     pub resize: ResizeConfig,
 }
 
@@ -34,11 +31,4 @@ pub struct PublicConfig {
     #[clap(long)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub images_url: Option<String>,
-}
-
-#[derive(Debug, Clone, Deserialize, Parser)]
-pub struct FutureConfig {
-    #[cfg(feature = "full-text-search")]
-    #[clap(long)]
-    pub full_text_search: Option<bool>,
 }

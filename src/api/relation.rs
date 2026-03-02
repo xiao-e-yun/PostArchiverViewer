@@ -1,8 +1,8 @@
 use std::{collections::HashSet, fmt::Debug, hash::Hash};
 
 use post_archiver::{
-    manager::PostArchiverManager, Author, AuthorId, Collection, CollectionId, FileMeta, FileMetaId,
-    Platform, PlatformId, Tag, TagId,
+    Author, AuthorId, Collection, CollectionId, FileMeta, FileMetaId, Platform, PlatformId, Tag,
+    TagId, manager::PostArchiverManager, utils::AsTable,
 };
 use rusqlite::Connection;
 use serde::Serialize;
@@ -141,9 +141,9 @@ impl<T: Category> RelationTarget for T {
 
 impl RelationTarget for FileMeta {
     type Id = FileMetaId;
-    const TABLE_NAME: &'static str = "file_metas";
+    const TABLE_NAME: &'static str = <FileMeta as AsTable>::TABLE_NAME;
 
     fn from_row(row: &rusqlite::Row) -> Result<Self, rusqlite::Error> {
-        FileMeta::from_row(row)
+        <FileMeta as AsTable>::from_row(row)
     }
 }

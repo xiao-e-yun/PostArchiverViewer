@@ -1,6 +1,12 @@
 use std::sync::Arc;
 
-use axum::{extract::State, http::Uri, response::{Html, IntoResponse}, routing::get, Router};
+use axum::{
+    Router,
+    extract::State,
+    http::Uri,
+    response::{Html, IntoResponse},
+    routing::get,
+};
 use rust_embed::Embed;
 use tracing::info;
 

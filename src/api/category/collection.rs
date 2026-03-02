@@ -1,5 +1,4 @@
 use post_archiver::{Collection, CollectionId};
-use rusqlite::Row;
 
 use crate::api::relation::RequireRelations;
 
@@ -13,9 +12,4 @@ impl RequireRelations for Collection {
 
 impl Category for Collection {
     type Id = CollectionId;
-    const TABLE_NAME: &'static str = "collections";
-
-    fn from_row(row: &Row) -> Result<Self, rusqlite::Error> {
-        Collection::from_row(row)
-    }
 }

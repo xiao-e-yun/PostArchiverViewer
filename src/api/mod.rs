@@ -30,10 +30,6 @@ use crate::config::Config;
 pub struct AppState {
     manager: Arc<Mutex<PostArchiverManager>>,
     caches: Arc<Caches>,
-    #[allow(unused)]
-    config: Config,
-    #[cfg(feature = "full-text-search")]
-    full_text_search: bool,
 }
 
 #[derive(Debug)]
@@ -46,13 +42,6 @@ impl AppState {
     pub fn manager(&self) -> std::sync::MutexGuard<'_, PostArchiverManager> {
         self.manager.lock().unwrap()
     }
-    fn full_text_search(&self) -> bool {
-        #[cfg(feature = "full-text-search")]
-        let value = self.full_text_search;
-        #[cfg(not(feature = "full-text-search"))]
-        let value = false;
-        value
-    }
 }
 
 pub fn get_api_router(config: &Config) -> Router<()> {
@@ -61,19 +50,13 @@ pub fn get_api_router(config: &Config) -> Router<()> {
     #[allow(unused_mut)]
     let mut manager = connect_database(path.as_path());
 
-    #[cfg(feature = "full-text-search")]
-    let full_text_search = posts::sync_text_search(config, &mut manager);
-
     let manager = Arc::new(Mutex::new(manager));
     let state = AppState {
         caches: Arc::new(Caches {
             tables: Mutex::new(TimedCache::with_lifespan(60 * 60 * 12)),
             posts: Mutex::new(TimedSizedCache::with_size_and_lifespan(256, 60 * 60 * 12)),
         }),
-        config: config.clone(),
         manager,
-        #[cfg(feature = "full-text-search")]
-        full_text_search,
     };
 
     let router = Router::new()
@@ -90,20 +73,7 @@ pub fn get_api_router(config: &Config) -> Router<()> {
 }
 
 pub fn connect_database(path: &Path) -> PostArchiverManager {
-    #[cfg(feature = "full-text-search")]
-    let dir = {
-        let dir = tempfile::tempdir().unwrap();
-        libsimple::enable_auto_extension().unwrap();
-        libsimple::release_dict(&dir).unwrap();
-        dir
-    };
-
-    let manager = PostArchiverManager::open(path).unwrap().unwrap();
-
-    #[cfg(feature = "full-text-search")]
-    libsimple::set_dict(manager.conn(), &dir).unwrap();
-
-    manager
+    PostArchiverManager::open(path).unwrap().unwrap()
 }
 
 #[derive(Debug, Deserialize)]

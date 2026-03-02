@@ -1,4 +1,4 @@
-use axum::{extract::State, http::StatusCode, Json};
+use axum::{Json, extract::State, http::StatusCode};
 use post_archiver::utils::VERSION;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
