@@ -69,35 +69,26 @@ pub async fn get_post_handler(
 
     let binded_post = manager.bind(id);
 
-    let mut tags = manager.tags();
-    tags.ids.extend(
-        binded_post
-            .list_tags()
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
-    );
-    let tags = tags
-        .query()
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    macro_rules! query_relation {
+        ($list_method:ident, $query_method:ident) => {{
+            let ids = binded_post
+                .$list_method()
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            if ids.is_empty() {
+                Vec::new()
+            } else {
+                let mut query = manager.$query_method();
+                query.ids.extend(ids);
+                query
+                    .query()
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+            }
+        }};
+    }
 
-    let mut authors = manager.authors();
-    authors.ids.extend(
-        binded_post
-            .list_authors()
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
-    );
-    let authors = authors
-        .query()
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    let mut collections = manager.collections();
-    collections.ids.extend(
-        binded_post
-            .list_collections()
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
-    );
-    let collections = collections
-        .query()
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let tags = query_relation!(list_tags, tags);
+    let authors = query_relation!(list_authors, authors);
+    let collections = query_relation!(list_collections, collections);
 
     WithRelations::new(
         &manager,
