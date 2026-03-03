@@ -9,8 +9,7 @@ use post_archiver::{Alias, Author, AuthorId, PlatformId, utils::AsTable};
 use crate::api::{
     AppState,
     category::{get_category_handler, list_category_handler},
-    relation::{RequireRelations, WithRelations},
-    utils::ListResponse,
+    relation::{RequireRelations, WithRelations}, utils::list::ListResponse,
 };
 
 use super::{Category, CategoryOrderBy};
@@ -45,7 +44,7 @@ impl Category for Author {
 pub async fn author_aliases_handler(
     State(state): State<AppState>,
     Path(id): Path<AuthorId>,
-) -> Result<Json<WithRelations<ListResponse<Alias>>>, StatusCode> {
+) -> Result<Json<WithRelations<ListResponse<Vec<Alias>>>>, StatusCode> {
     let manager = &state.manager();
     let list = manager
         .list_author_aliases(id)

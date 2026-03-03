@@ -1908,9 +1908,9 @@ dependencies = [
 
 [[package]]
 name = "post-archiver"
-version = "0.5.4"
+version = "0.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a21ce8c30aeee5da737a2452223ae7f66bcb3c18be7186f7e7c0097e14c1225"
+checksum = "c82f1cc6e05999d47d6e579cabc7062fba3f59c54c70ce8e96c0dfc389b2859a"
 dependencies = [
  "chrono",
  "dashmap",

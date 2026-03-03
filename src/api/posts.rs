@@ -1,15 +1,19 @@
 use axum::{Json, Router, extract::State, http::StatusCode, routing::get};
 use axum_extra::extract::Query;
 use cached::Cached;
-use post_archiver::{AuthorId, CollectionId, PlatformId, TagId};
-use rusqlite::{CachedStatement, Connection, ToSql};
+use post_archiver::{
+    AuthorId, CollectionId, PlatformId, TagId,
+    query::{Paginate, SortDir, Sortable, post::PostSort},
+};
 use serde::{Deserialize, Serialize};
+
+use crate::api::utils::list::WithCachedTotal;
 
 use super::{
     AppState,
     post::get_post_handler,
     relation::WithRelations,
-    utils::{ListResponse, Pagination, PostPreview},
+    utils::{Pagination, list::ListResponse, post_preview::PostPreview},
 };
 
 pub fn wrap_posts_route(router: Router<AppState>) -> Router<AppState> {
@@ -43,185 +47,42 @@ pub struct SearchQuery {
     order_by: PostOrderBy,
 }
 
-type SearchContext = (
-    Vec<&'static str>,
-    Vec<&'static str>,
-    Vec<&'static str>,
-    Vec<(&'static str, String)>,
-);
 pub async fn list_posts_handler(
     Query(pagination): Query<Pagination>,
-    Query(query): Query<SearchQuery>,
+    Query(searchs): Query<SearchQuery>,
     State(state): State<AppState>,
-) -> Result<Json<WithRelations<ListResponse<PostPreview>>>, StatusCode> {
+) -> Result<Json<WithRelations<ListResponse<Vec<PostPreview>>>>, StatusCode> {
+
     let manager = state.manager();
-    let conn = manager.conn();
 
-    let mut context: SearchContext = (vec![], vec![], vec![], vec![]);
+    let mut query = manager.posts();
 
-    bind_search(&mut context, &query.search);
-    bind_relation(
-        &mut context,
-        &query.authors,
-        &query.tags,
-        &query.collections,
-        &query.platforms,
-    );
+    query.title.contains(&searchs.search);
+    query.authors.extend(searchs.authors.clone());
+    query.tags.extend(searchs.tags.clone());
+    query.collections.extend(searchs.collections.clone());
+    query.platforms.extend(searchs.platforms.clone());
 
-    let list = {
-        let mut stmt = prepare_search(&context, query.order_by, conn).unwrap();
+    let total = state.caches.posts.lock().unwrap().cache_get(&searchs).cloned();
+    let query = WithCachedTotal::new(
+        query,
+        total,
+    ).pagination(pagination.limit(), pagination.page());
 
-        let pagination = pagination.params().map(|(k, v)| (k, v.to_string()));
-        let params = [context.3.as_slice(), &pagination].concat();
+    use post_archiver::query::Query;
+    let result = match searchs.order_by {
+        PostOrderBy::Id => query.sort(PostSort::Id, SortDir::Desc).query(),
+        PostOrderBy::Updated => query.sort(PostSort::Updated, SortDir::Desc).query(),
+        PostOrderBy::Random => query.sort_random().query(),
+    }
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-        let params = params
-            .iter()
-            .map(|(k, v)| (*k, v as &dyn ToSql))
-            .collect::<Vec<_>>();
+    // Cache the total if it was not cached before
+    if total.is_none() {
+        state.caches.posts.lock().unwrap().cache_set(searchs, result.total);
+    }
 
-        let rows = stmt
-            .query_map(params.as_slice(), PostPreview::from_row)
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-        rows.collect::<Result<Vec<_>, _>>()
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-    };
-
-    let total = {
-        let params = context
-            .3
-            .iter()
-            .map(|(k, v)| (*k, v as &dyn ToSql))
-            .collect::<Vec<_>>();
-
-        let mut cache = state.caches.posts.lock().unwrap();
-
-        match cache.cache_get(&query) {
-            Some(cached) => *cached,
-            None => {
-                let mut stmt = prepare_search_total(&context, conn).unwrap();
-
-                let total = match stmt.query_row(params.as_slice(), |row| row.get(0)) {
-                    Ok(total) => total,
-                    Err(rusqlite::Error::QueryReturnedNoRows) => 0,
-                    Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
-                };
-
-                cache.cache_set(query, total);
-
-                total
-            }
-        }
-    };
-
-    WithRelations::new(&manager, ListResponse { list, total })
+    WithRelations::new(&manager, result)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
         .map(Json::from)
-}
-
-fn prepare_search<'a>(
-    (joins, filters, havings, _params): &SearchContext,
-    order_by: PostOrderBy,
-    connection: &'a Connection,
-) -> Result<CachedStatement<'a>, rusqlite::Error> {
-    let joins = joins.join(" ");
-
-    let filters = if filters.is_empty() {
-        String::new()
-    } else {
-        format!("WHERE {}", filters.join(" AND "))
-    };
-
-    let havings = if havings.is_empty() {
-        String::new()
-    } else {
-        format!("GROUP BY posts.id HAVING {}", havings.join(" AND "))
-    };
-
-    let order_by = match order_by {
-        PostOrderBy::Id => "posts.id DESC",
-        PostOrderBy::Updated => "posts.updated DESC",
-        PostOrderBy::Random => "RANDOM()",
-    };
-
-    let sql = format!(
-        "SELECT id, title, updated, thumb FROM posts {joins} {filters} {havings} ORDER BY {order_by} LIMIT :limit OFFSET :offset",
-    );
-
-    connection.prepare_cached(&sql)
-}
-
-fn prepare_search_total<'a>(
-    (joins, filters, havings, _params): &SearchContext,
-    connection: &'a Connection,
-) -> Result<CachedStatement<'a>, rusqlite::Error> {
-    let joins = joins.join(" ");
-
-    let filters = if filters.is_empty() {
-        String::new()
-    } else {
-        format!("WHERE {}", filters.join(" AND "))
-    };
-
-    let havings = if havings.is_empty() {
-        String::new()
-    } else {
-        format!("GROUP BY posts.id HAVING {}", havings.join(" AND "))
-    };
-
-    let sql = format!("SELECT count() FROM (SELECT 0 FROM posts {joins} {filters} {havings})");
-
-    connection.prepare_cached(&sql)
-}
-
-fn bind_relation(
-    (joins, filters, havings, params): &mut SearchContext,
-    authors: &[AuthorId],
-    tags: &[TagId],
-    collections: &[CollectionId],
-    platforms: &[PlatformId],
-) {
-    if !authors.is_empty() {
-        joins.push("JOIN author_posts ON posts.id = author_posts.post AND author_posts.author IN (SELECT value FROM json_each(:authors))");
-        params.push((":authors", serde_json::to_string(&authors).unwrap()));
-        if authors.len() > 1 {
-            havings.push("COUNT(DISTINCT author_posts.author) == CAST(:author_count AS INTEGER)");
-            params.push((":author_count", authors.len().to_string()));
-        }
-    }
-
-    if !tags.is_empty() {
-        joins.push("JOIN post_tags ON posts.id = post_tags.post AND post_tags.tag IN (SELECT value FROM json_each(:tags))");
-        params.push((":tags", serde_json::to_string(&tags).unwrap()));
-
-        if tags.len() > 1 {
-            havings.push("COUNT(DISTINCT post_tags.tag) == CAST(:tag_count AS INTEGER)");
-            params.push((":tag_count", tags.len().to_string()));
-        }
-    }
-
-    if !collections.is_empty() {
-        joins.push("JOIN collection_posts ON posts.id = collection_posts.post AND collection_posts.collection IN (SELECT value FROM json_each(:collections))");
-        params.push((":collections", serde_json::to_string(&collections).unwrap()));
-        if collections.len() > 1 {
-            havings.push(
-                "COUNT(DISTINCT collection_posts.collection) == CAST(:collection_count AS INTEGER)",
-            );
-            params.push((":collection_count", collections.len().to_string()));
-        }
-    }
-
-    if !platforms.is_empty() {
-        filters.push("posts.platform IN (SELECT value FROM json_each(:platform))");
-        params.push((":platform", serde_json::to_string(&platforms).unwrap()));
-    }
-}
-
-fn bind_search((_joins, filters, _havings, params): &mut SearchContext, search: &str) {
-    if search.is_empty() {
-        return;
-    }
-
-    params.push((":search", search.trim().to_string()));
-    filters.push("posts.title LIKE concat('%', :search, '%')");
 }

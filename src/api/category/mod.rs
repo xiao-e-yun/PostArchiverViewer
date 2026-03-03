@@ -21,7 +21,7 @@ use ts_rs::TS;
 use super::{
     AppState,
     relation::{RequireRelations, WithRelations},
-    utils::{ListResponse, Pagination},
+    utils::{Pagination, list::ListResponse},
 };
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -140,7 +140,7 @@ async fn list_category_handler<T: Category>(
     Query(filter): Query<Filter>,
     Query(pagination): Query<Pagination>,
     State(state): State<AppState>,
-) -> Result<Json<WithRelations<ListResponse<T>>>, StatusCode> {
+) -> Result<Json<WithRelations<ListResponse<Vec<T>>>>, StatusCode> {
     let manager = &state.manager();
     let list = T::list(manager, pagination, filter.search.clone(), filter.order_by)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
