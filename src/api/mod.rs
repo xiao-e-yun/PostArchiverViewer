@@ -17,10 +17,9 @@ use axum::{
     response::Redirect,
     routing::get,
 };
-use cached::{TimedCache, TimedSizedCache};
+use cached::TimedCache;
 use category::Category;
 use post_archiver::{Author, Collection, Platform, Tag, manager::PostArchiverManager};
-use posts::SearchQuery;
 use serde::Deserialize;
 use summary::get_summary_api;
 
@@ -34,8 +33,7 @@ pub struct AppState {
 
 #[derive(Debug)]
 pub struct Caches {
-    pub tables: Mutex<TimedCache<&'static str, usize>>,
-    pub posts: Mutex<TimedSizedCache<SearchQuery, usize>>,
+    pub tables: Mutex<TimedCache<&'static str, u64>>,
 }
 
 impl AppState {
@@ -54,7 +52,6 @@ pub fn get_api_router(config: &Config) -> Router<()> {
     let state = AppState {
         caches: Arc::new(Caches {
             tables: Mutex::new(TimedCache::with_lifespan(60 * 60 * 12)),
-            posts: Mutex::new(TimedSizedCache::with_size_and_lifespan(256, 60 * 60 * 12)),
         }),
         manager,
     };

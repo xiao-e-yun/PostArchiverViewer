@@ -8,7 +8,6 @@ import {
   useRelations,
   type UrlParams,
 } from "@/utils";
-import type { ListResponse } from "@api/ListResponse";
 import { refThrottled, useEventListener, useLocalStorage } from "@vueuse/core";
 
 import { dynamicListControlKey, dynamicPrePageKey } from "./utils";
@@ -16,6 +15,7 @@ import { useRouteQuery } from "@vueuse/router";
 import { cloneDeep, isEqual, merge } from "lodash";
 import type { WithRelations } from "@api/WithRelations";
 import { watch } from "vue";
+import type { Totalled } from "@/api";
 
 const props = withDefaults(
   defineProps<{
@@ -53,10 +53,10 @@ const url = computed(
     }).href,
 );
 const { data, isFetching: pending } = useFetchWithCache<
-  WithRelations<ListResponse<U>>
+  WithRelations<Totalled<U[]>>
 >("dynamic-list", url);
 
-const list = computed(() => data.value?.list);
+const list = computed(() => data.value?.items);
 
 const total = (() => {
   let prevProps = {};

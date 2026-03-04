@@ -171,7 +171,7 @@ export const useFetchWithCache = <T>(
 
   return {
     ...result,
-    data: computed(() => result.data.value ?? prevResult?.data.value),
+    data: computed<T>(() => result.data.value ?? prevResult?.data.value),
   };
 };
 

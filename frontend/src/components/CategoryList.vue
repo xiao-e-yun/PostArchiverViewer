@@ -134,7 +134,10 @@ const categoryPrefix = Object.fromEntries(
           class="text-md transition-transform hover:scale-105 hover:z-10"
         >
           {{ categoryPrefix[category] + item.name }}
-          <template v-if="item.platform" #secondary>
+          <template
+            v-if="'platform' in item && item.platform !== null"
+            #secondary
+          >
             {{ relations.platforms.get(item.platform)?.name || "Unknown" }}
           </template>
         </DoubleBadge>

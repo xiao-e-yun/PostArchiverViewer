@@ -13,7 +13,7 @@ use axum::{
 };
 use axum_extra::extract::Query;
 use cached::Cached;
-use post_archiver::{manager::PostArchiverManager, utils::AsTable};
+use post_archiver::{manager::PostArchiverManager, query::Totalled, utils::AsTable};
 use rusqlite::{OptionalExtension, ToSql};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -21,7 +21,7 @@ use ts_rs::TS;
 use super::{
     AppState,
     relation::{RequireRelations, WithRelations},
-    utils::{Pagination, list::ListResponse},
+    utils::Pagination,
 };
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -89,7 +89,7 @@ pub trait Category: RequireRelations + Serialize + AsTable + Debug + TS + Sized 
         state: &AppState,
         manager: &PostArchiverManager,
         search: String,
-    ) -> Result<usize, rusqlite::Error> {
+    ) -> Result<u64, rusqlite::Error> {
         if !search.is_empty() {
             let mut stmt = manager.conn().prepare_cached(&format!(
                 "SELECT COUNT() FROM {} WHERE name LIKE concat('%',?,'%')",
@@ -140,14 +140,14 @@ async fn list_category_handler<T: Category>(
     Query(filter): Query<Filter>,
     Query(pagination): Query<Pagination>,
     State(state): State<AppState>,
-) -> Result<Json<WithRelations<ListResponse<Vec<T>>>>, StatusCode> {
+) -> Result<Json<WithRelations<Totalled<Vec<T>>>>, StatusCode> {
     let manager = &state.manager();
-    let list = T::list(manager, pagination, filter.search.clone(), filter.order_by)
+    let items = T::list(manager, pagination, filter.search.clone(), filter.order_by)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let total =
         T::total(&state, manager, filter.search).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    WithRelations::new(manager, ListResponse { list, total })
+    WithRelations::new(manager, Totalled { items, total })
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
         .map(Json::from)
 }

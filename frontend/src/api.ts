@@ -3,6 +3,8 @@ import type { Author, Collection, Platform, Tag } from "post-archiver";
 
 export type Category = Platform | Tag | Collection | Author;
 
+export type Totalled<T> = { items: T; total: number };
+
 declare global {
   interface Window {
     PUBLIC_CONFIG: PublicConfig;

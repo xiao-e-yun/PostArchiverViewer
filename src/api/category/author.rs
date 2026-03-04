@@ -4,12 +4,12 @@ use axum::{
     http::StatusCode,
     routing::get,
 };
-use post_archiver::{Alias, Author, AuthorId, PlatformId, utils::AsTable};
+use post_archiver::{Alias, Author, AuthorId, PlatformId, query::Totalled, utils::AsTable};
 
 use crate::api::{
     AppState,
     category::{get_category_handler, list_category_handler},
-    relation::{RequireRelations, WithRelations}, utils::list::ListResponse,
+    relation::{RequireRelations, WithRelations},
 };
 
 use super::{Category, CategoryOrderBy};
@@ -44,14 +44,14 @@ impl Category for Author {
 pub async fn author_aliases_handler(
     State(state): State<AppState>,
     Path(id): Path<AuthorId>,
-) -> Result<Json<WithRelations<ListResponse<Vec<Alias>>>>, StatusCode> {
+) -> Result<Json<WithRelations<Totalled<Vec<Alias>>>>, StatusCode> {
     let manager = &state.manager();
-    let list = manager
+    let items = manager
         .list_author_aliases(id)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let total = list.len();
+    let total = items.len() as u64;
 
-    WithRelations::new(manager, ListResponse { list, total })
+    WithRelations::new(manager, Totalled { items, total })
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
         .map(Json::from)
 }

@@ -6,6 +6,7 @@ import type {
   Tag,
 } from "post-archiver";
 import { getUrlWithParams } from "./utils";
+import type { Totalled } from "./api";
 export enum CategoryType {
   Tag = "tags",
   Author = "authors",
@@ -83,11 +84,11 @@ const fromFetchList = (
       });
       const response = await fetch(url);
 
-      type ListResponse = WithRelations<{ list: Category[]; total: number }>;
+      type ListResponse = WithRelations<Totalled<Category[]>>;
       const data: ListResponse = await response.json();
       if (!data) return null;
 
-      return data.list.map((item) => {
+      return data.items.map((item) => {
         const category = new builder(item, data);
         fetchMap.set(`${builder.TYPE}-${item.id}`, Promise.resolve(category));
         return category;

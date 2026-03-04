@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Pagination {
     pub limit: Option<u64>,
@@ -54,83 +53,26 @@ pub mod post_preview {
     }
 }
 
-pub mod list {
-    
-
-    
-    use post_archiver::{AuthorId, CollectionId, FileMetaId, PlatformId, TagId, error::Result, manager::PostArchiverConnection, query::{BaseFilter, FromQuery, Query, Queryer, RawSql, Sortable}};
-    use serde::Serialize;
-    use ts_rs::TS;
+mod totalled {
+    use post_archiver::{*, query::Totalled};
 
     use crate::api::relation::RequireRelations;
 
-    #[derive(Debug)]
-    pub struct WithCachedTotal<Q> {
-        inner: Q,
-        total: Option<usize>,
-    }
-
-    impl<Q> WithCachedTotal<Q> {
-        pub fn new(inner: Q, cached: Option<usize>) -> Self {
-            Self { inner, total: cached }
-        }
-    }
-
-    impl<Q: Query + BaseFilter> Query for WithCachedTotal<Q> {
-        type Wrapper<T> = ListResponse<Q::Wrapper<T>>;
-        type Based = <Q as Query>::Based;
-
-        fn query_with_context<T: FromQuery<Based = Self::Based>>(
-            self,
-            sql: RawSql<T>,
-        ) -> Result<Self::Wrapper<T>> {
-            let total = match self.total {
-                Some(total) => total,
-                None => self.inner.count()? as usize
-            };
-            let list = self.inner.query_with_context(sql)?;
-            Ok(ListResponse { list, total })
-        }
-    }
-
-    impl<T: BaseFilter> BaseFilter for WithCachedTotal<T> {
-        type Based = T::Based;
-
-        fn update_sql<U: FromQuery<Based = Self::Based>>(&self, sql: RawSql<U>) -> RawSql<U> {
-            self.inner.update_sql(sql)
-        }
-
-        fn queryer(&self) -> &Queryer<'_, impl PostArchiverConnection> {
-            self.inner.queryer()
-        }
-    }
-
-    impl<T: Sortable> Sortable for WithCachedTotal<T> {
-        type SortField = T::SortField;
-    }
-
-    #[derive(Debug, Clone, Serialize, TS)]
-    #[ts(export)]
-    pub struct ListResponse<T> {
-        pub list: T,
-        pub total: usize,
-    }
-
-    impl<T: RequireRelations> RequireRelations for ListResponse<T> {
+    impl<T: RequireRelations> RequireRelations for Totalled<T> {
         fn authors(&self) -> Vec<AuthorId> {
-            self.list.authors()
+            self.items.authors()
         }
         fn collections(&self) -> Vec<CollectionId> {
-            self.list.collections()
+            self.items.collections()
         }
         fn platforms(&self) -> Vec<PlatformId> {
-            self.list.platforms()
+            self.items.platforms()
         }
         fn tags(&self) -> Vec<TagId> {
-            self.list.tags()
+            self.items.tags()
         }
         fn file_metas(&self) -> Vec<FileMetaId> {
-            self.list.file_metas()
+            self.items.file_metas()
         }
     }
 }

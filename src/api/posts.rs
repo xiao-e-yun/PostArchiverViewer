@@ -1,19 +1,16 @@
 use axum::{Json, Router, extract::State, http::StatusCode, routing::get};
 use axum_extra::extract::Query;
-use cached::Cached;
 use post_archiver::{
     AuthorId, CollectionId, PlatformId, TagId,
-    query::{Paginate, SortDir, Sortable, post::PostSort},
+    query::{Countable, Paginate, SortDir, Sortable, Totalled, post::PostSort},
 };
 use serde::{Deserialize, Serialize};
-
-use crate::api::utils::list::WithCachedTotal;
 
 use super::{
     AppState,
     post::get_post_handler,
     relation::WithRelations,
-    utils::{Pagination, list::ListResponse, post_preview::PostPreview},
+    utils::{Pagination, post_preview::PostPreview},
 };
 
 pub fn wrap_posts_route(router: Router<AppState>) -> Router<AppState> {
@@ -51,7 +48,7 @@ pub async fn list_posts_handler(
     Query(pagination): Query<Pagination>,
     Query(searchs): Query<SearchQuery>,
     State(state): State<AppState>,
-) -> Result<Json<WithRelations<ListResponse<Vec<PostPreview>>>>, StatusCode> {
+) -> Result<Json<WithRelations<Totalled<Vec<PostPreview>>>>, StatusCode> {
 
     let manager = state.manager();
 
@@ -63,11 +60,7 @@ pub async fn list_posts_handler(
     query.collections.extend(searchs.collections.clone());
     query.platforms.extend(searchs.platforms.clone());
 
-    let total = state.caches.posts.lock().unwrap().cache_get(&searchs).cloned();
-    let query = WithCachedTotal::new(
-        query,
-        total,
-    ).pagination(pagination.limit(), pagination.page());
+    let query = query.with_total().pagination(pagination.limit(), pagination.page());
 
     use post_archiver::query::Query;
     let result = match searchs.order_by {
@@ -78,10 +71,6 @@ pub async fn list_posts_handler(
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     // Cache the total if it was not cached before
-    if total.is_none() {
-        state.caches.posts.lock().unwrap().cache_set(searchs, result.total);
-    }
-
     WithRelations::new(&manager, result)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
         .map(Json::from)

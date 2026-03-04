@@ -2,20 +2,20 @@
 import { computed } from "vue";
 import DoubleBadge from "./DoubleBadge.vue";
 import type { WithRelations } from "@api/WithRelations";
-import type { ListResponse } from "@api/ListResponse";
 import type { Alias } from "post-archiver";
 import { useFetchWithCache, useRelations } from "@/utils";
+import type { Totalled } from "@/api";
 
 const props = defineProps<{ id: number }>();
 
 const url = computed(() => `/api/authors/${props.id}/aliases`);
-const { data } = useFetchWithCache<WithRelations<ListResponse<Alias>>>(
+const { data } = useFetchWithCache<WithRelations<Totalled<Alias[]>>>(
   "aliases",
   url,
 );
 const relations = useRelations(data);
 
-const aliases = computed<Alias[]>(() => data.value?.list || []);
+const aliases = computed<Alias[]>(() => data.value?.items || []);
 const aliasesWithPlatforms = computed(() =>
   aliases.value.map((a) => [a, getPlatform(a)] as const),
 );
