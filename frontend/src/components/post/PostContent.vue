@@ -130,6 +130,7 @@ provide(
 
 .content a {
   color: rgb(147 197 253 / var(--tw-text-opacity, 1));
+  word-break: break-all;
 }
 
 .content a:hover {
