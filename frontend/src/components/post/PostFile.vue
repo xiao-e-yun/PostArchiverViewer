@@ -75,33 +75,37 @@ const zipViewerOpen = ref(false);
     class="m-auto overflow-hidden max-h-[80vh] max-w-full relative"
     :style="getStyleByFileExtra(file.extra)"
   >
-    <svg
-      v-if="hasExtra(file.extra)"
-      :width="file.extra.width"
-      :height="file.extra.height"
-    />
+    <template v-if="file.mime.startsWith('image/')">
+      <svg
+        v-if="hasExtra(file.extra)"
+        :width="file.extra.width"
+        :height="file.extra.height"
+      />
 
-    <DialogImage
-      v-if="file.mime.startsWith('image/')"
-      :aspect="getStyleByFileExtra((index || file).extra).aspectRatio"
-      :src="getFileMetaPath(index || file)"
-      class="p-0"
-      @update:opened="resetIndex"
-      @click="onClickToSwitch"
-    >
-      <DialogTrigger as="div">
-        <DynamicImage
-          :width="100"
-          :src="getFileMetaPath(file)"
-          :aspect="getStyleByFileExtra(file.extra).aspectRatio"
-          class="object-cover max-h-[80vh] w-full h-full inset-0"
-          :style="{ position: hasExtra(file.extra) ? 'absolute' : 'relative' }"
-        />
-      </DialogTrigger>
-    </DialogImage>
+      <DialogImage
+        :aspect="getStyleByFileExtra((index || file).extra).aspectRatio"
+        :src="getFileMetaPath(index || file)"
+        class="p-0"
+        @update:opened="resetIndex"
+        @click="onClickToSwitch"
+      >
+        <DialogTrigger as="div">
+          <DynamicImage
+            :width="100"
+            :src="getFileMetaPath(file)"
+            :aspect="getStyleByFileExtra(file.extra).aspectRatio"
+            class="object-cover max-h-[80vh] w-full h-full inset-0"
+            :style="{
+              position: hasExtra(file.extra) ? 'absolute' : 'relative',
+            }"
+          />
+        </DialogTrigger>
+      </DialogImage>
+    </template>
 
     <video
       v-else-if="file.mime.startsWith('video/')"
+      :style="getStyleByFileExtra(file.extra)"
       :src="getFileMetaPath(file)"
       class="lazy max-h-[80vh]"
       controls
