@@ -63,7 +63,7 @@ const categoryPrefix = Object.fromEntries(
       <Card
         v-for="item in list"
         :key="item.id"
-        class="transition-transform hover:scale-105 hover:z-10 relative w-full h-full [.inline-list>&:nth-child(n+3)]:max-md:hidden [.inline-list>&:nth-child(n+4)]:max-xl:hidden [.inline-list>&:nth-child(n+5)]:max-2xl:hidden [.inline-list>&:nth-child(n+6)]:hidden"
+        class="transition-transform hover:scale-105 hover:z-10 relative w-full h-full dark:bg-secondary [.inline-list>&:nth-child(n+3)]:max-md:hidden [.inline-list>&:nth-child(n+4)]:max-xl:hidden [.inline-list>&:nth-child(n+5)]:max-2xl:hidden [.inline-list>&:nth-child(n+6)]:hidden"
         as-child
       >
         <RouterLink :to="`/${category}/${item.id}`">
