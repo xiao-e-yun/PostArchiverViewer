@@ -3,6 +3,7 @@ import { computed, inject, provide } from "vue";
 import { postImagesKey, postKey } from "./utils";
 import type { FileMeta } from "@api/FileMeta";
 import { Marked } from "marked";
+import DOMPurify from "dompurify";
 import PostFile from "./PostFile.vue";
 import { useLazyLoad } from "@/lazyload";
 import { throttle } from "lodash";
@@ -28,7 +29,7 @@ const contents = computed(() => {
   const contents: (string | FileMeta)[] = [];
   for (const c of $post.content) {
     if (typeof c === "string") {
-      const markedContent = marked.parse(c);
+      const markedContent = DOMPurify.sanitize(marked.parse(c) as string);
       textList.push(markedContent);
     } else {
       if (textList.length) contents.push(textList.join(""));
