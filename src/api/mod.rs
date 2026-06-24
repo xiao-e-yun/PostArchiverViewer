@@ -94,7 +94,7 @@ async fn get_redirect_api(
 
     let url = match id {
         Some(id) => format!("/posts/{id}"),
-        None => url,
+        None => "/".to_string(),
     };
 
     Ok(Redirect::permanent(&url))
