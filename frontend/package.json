@@ -36,6 +36,7 @@
     "caniuse-lite": "^1.0.30001774",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dompurify": "^3.4.11",
     "eslint-plugin-vue": "^9.32.0",
     "jszip": "^3.10.1",
     "lodash": "^4.17.21",
