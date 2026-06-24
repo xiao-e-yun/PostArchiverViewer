@@ -4,6 +4,7 @@ pub mod frontend;
 pub mod resource;
 
 use api::get_api_router;
+use axum::http::{HeaderValue, header::X_CONTENT_TYPE_OPTIONS};
 use clap::Parser;
 use config::Config;
 use console::style;
@@ -18,6 +19,7 @@ use tower::ServiceBuilder;
 use tower_http::{
     compression::CompressionLayer,
     cors::{Any, CorsLayer},
+    set_header::SetResponseHeaderLayer,
     trace::TraceLayer,
 };
 use tracing::{error, info};
@@ -68,7 +70,11 @@ async fn main() {
         .layer(
             ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())
-                .layer(CorsLayer::new().allow_origin(Any)),
+                .layer(CorsLayer::new().allow_origin(Any))
+                .layer(SetResponseHeaderLayer::overriding(
+                    X_CONTENT_TYPE_OPTIONS,
+                    HeaderValue::from_static("nosniff"),
+                )),
         );
 
     let port = config.port;
