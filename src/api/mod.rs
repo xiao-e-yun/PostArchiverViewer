@@ -21,6 +21,7 @@ use cached::TimedCache;
 use category::Category;
 use post_archiver::{Author, Collection, Platform, Tag, manager::PostArchiverManager};
 use serde::Deserialize;
+use url::Url;
 use summary::get_summary_api;
 
 use crate::config::Config;
@@ -83,6 +84,12 @@ async fn get_redirect_api(
     State(state): State<AppState>,
 ) -> Result<Redirect, StatusCode> {
     let url = query.url;
+
+    let parsed = Url::parse(&url);
+    let scheme = parsed.as_ref().map(Url::scheme);
+    if !matches!(scheme, Ok("http") | Ok("https")) {
+        return Err(StatusCode::BAD_REQUEST);
+    }
 
     let manager = state.manager();
     let conn = manager.conn();
