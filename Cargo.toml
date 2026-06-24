@@ -36,3 +36,4 @@ qrcode = { version = "0.14.1", default-features = false }
 console = "0.15.11"
 time = "0.3.47"
 image-provider = "0.1.0"
+url = "2.5.7"
