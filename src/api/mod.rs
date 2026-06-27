@@ -71,7 +71,25 @@ pub fn get_api_router(config: &Config) -> Router<()> {
 }
 
 pub fn connect_database(path: &Path) -> PostArchiverManager {
-    PostArchiverManager::open(path).unwrap().unwrap()
+    let manager = PostArchiverManager::open(path).unwrap().unwrap();
+
+    // Tune SQLite for a read-mostly viewer workload. All of these are
+    // per-connection pragmas that do NOT modify the database file, so they are
+    // safe even though the archive is owned/written by the archiver process.
+    manager
+        .conn()
+        .execute_batch(
+            "
+            PRAGMA query_only = ON;       -- read-only guard: reject any accidental writes
+            PRAGMA busy_timeout = 5000;   -- wait up to 5s on a lock instead of erroring
+            PRAGMA cache_size = -65536;   -- ~64MB page cache (negative value = KiB)
+            PRAGMA mmap_size = 268435456; -- 256MB memory-mapped reads, fewer syscalls
+            PRAGMA temp_store = MEMORY;   -- keep sorts/temp tables in memory
+            ",
+        )
+        .expect("failed to apply SQLite pragmas");
+
+    manager
 }
 
 #[derive(Debug, Deserialize)]
