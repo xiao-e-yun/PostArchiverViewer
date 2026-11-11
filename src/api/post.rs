@@ -5,7 +5,9 @@ use axum::{
 };
 use chrono::{DateTime, Utc};
 use post_archiver::{
-    Author, Collection, Comment, Content, FileMetaId, PlatformId, PostId, Tag, query::Query,
+    Author, Collection, Comment, Content, FileMetaId, PlatformId, Post, PostId, Tag,
+    manager::PostArchiverBindExt,
+    query::{PostArchiverQueryExt, Query},
 };
 use serde::Serialize;
 use ts_rs::TS;
@@ -61,7 +63,8 @@ pub async fn get_post_handler(
     let manager = state.manager();
 
     let Some(post) = manager
-        .get_post(id)
+        .posts()
+        .get::<Post>(id)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
     else {
         return Err(StatusCode::NOT_FOUND);
@@ -77,7 +80,7 @@ pub async fn get_post_handler(
             if ids.is_empty() {
                 Vec::new()
             } else {
-                let mut query = manager.$query_method();
+                let mut query = manager.$query_method().query();
                 query.ids.extend(ids);
                 query
                     .query()

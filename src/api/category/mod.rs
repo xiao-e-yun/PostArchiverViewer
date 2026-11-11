@@ -13,7 +13,7 @@ use axum::{
 };
 use axum_extra::extract::Query;
 use cached::Cached;
-use post_archiver::{manager::PostArchiverManager, query::Totalled, utils::AsTable};
+use post_archiver::{manager::PostArchiverManager, utils::AsTable};
 use rusqlite::{OptionalExtension, ToSql};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -21,7 +21,7 @@ use ts_rs::TS;
 use super::{
     AppState,
     relation::{RequireRelations, WithRelations},
-    utils::Pagination,
+    utils::{Pagination, Totalled},
 };
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -62,7 +62,7 @@ pub trait Category: RequireRelations + Serialize + AsTable + Debug + TS + Sized 
             ("WHERE name LIKE concat('%',:search,'%')", Some(search))
         };
 
-        let mut stmt = manager.conn().prepare_cached(&format!(
+        let mut stmt = manager.conn.prepare_cached(&format!(
             "SELECT * FROM {} {} {} LIMIT :limit OFFSET :offset",
             Self::TABLE_NAME,
             filter,
@@ -91,7 +91,7 @@ pub trait Category: RequireRelations + Serialize + AsTable + Debug + TS + Sized 
         search: String,
     ) -> Result<u64, rusqlite::Error> {
         if !search.is_empty() {
-            let mut stmt = manager.conn().prepare_cached(&format!(
+            let mut stmt = manager.conn.prepare_cached(&format!(
                 "SELECT COUNT() FROM {} WHERE name LIKE concat('%',?,'%')",
                 Self::TABLE_NAME
             ))?;
@@ -105,7 +105,7 @@ pub trait Category: RequireRelations + Serialize + AsTable + Debug + TS + Sized 
         }
 
         let mut stmt = manager
-            .conn()
+            .conn
             .prepare_cached(&format!("SELECT COUNT() FROM {}", Self::TABLE_NAME))?;
 
         let total = stmt.query_row([], |row| row.get(0))?;
@@ -119,7 +119,7 @@ pub trait Category: RequireRelations + Serialize + AsTable + Debug + TS + Sized 
         id: Self::Id,
     ) -> Result<Option<WithRelations<Self>>, rusqlite::Error> {
         let mut stmt = manager
-            .conn()
+            .conn
             .prepare_cached(&format!("SELECT * FROM {} WHERE id = ?", Self::TABLE_NAME))?;
 
         stmt.query_row([id], Self::from_row)

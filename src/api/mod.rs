@@ -21,8 +21,8 @@ use cached::TimedCache;
 use category::Category;
 use post_archiver::{Author, Collection, Platform, Tag, manager::PostArchiverManager};
 use serde::Deserialize;
-use url::Url;
 use summary::get_summary_api;
+use url::Url;
 
 use crate::config::Config;
 
@@ -77,7 +77,7 @@ pub fn connect_database(path: &Path) -> PostArchiverManager {
     // per-connection pragmas that do NOT modify the database file, so they are
     // safe even though the archive is owned/written by the archiver process.
     manager
-        .conn()
+        .conn
         .execute_batch(
             "
             PRAGMA query_only = ON;       -- read-only guard: reject any accidental writes
@@ -110,7 +110,7 @@ async fn get_redirect_api(
     }
 
     let manager = state.manager();
-    let conn = manager.conn();
+    let conn = &manager.conn;
 
     let mut stmt = conn
         .prepare_cached("SELECT id FROM posts WHERE source = ?")

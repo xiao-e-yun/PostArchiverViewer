@@ -23,7 +23,7 @@ pub async fn get_summary_api(
     State(state): State<AppState>,
 ) -> Result<Json<SummaryResponse>, StatusCode> {
     let manager = state.manager();
-    let conn = manager.conn();
+    let conn = &manager.conn;
 
     let post_archiver_version: String = conn
         .query_row("SELECT version FROM post_archiver_meta", [], |row| {

@@ -4,12 +4,15 @@ use axum::{
     http::StatusCode,
     routing::get,
 };
-use post_archiver::{Alias, Author, AuthorId, PlatformId, query::Totalled, utils::AsTable};
+use post_archiver::{
+    Alias, Author, AuthorId, PlatformId, manager::PostArchiverBindExt, utils::AsTable,
+};
 
 use crate::api::{
     AppState,
     category::{get_category_handler, list_category_handler},
     relation::{RequireRelations, WithRelations},
+    utils::Totalled,
 };
 
 use super::{Category, CategoryOrderBy};
@@ -47,7 +50,8 @@ pub async fn author_aliases_handler(
 ) -> Result<Json<WithRelations<Totalled<Vec<Alias>>>>, StatusCode> {
     let manager = &state.manager();
     let items = manager
-        .list_author_aliases(id)
+        .bind(id)
+        .list_aliases()
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let total = items.len() as u64;
 

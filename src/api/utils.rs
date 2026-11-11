@@ -39,10 +39,10 @@ pub mod post_preview {
 
     impl_from_query! {
         PostPreview extends Post {
-            id: "id",
-            title: "title",
-            thumb: "thumb",
-            updated: "updated",
+            id: id,
+            title: title,
+            thumb: thumb,
+            updated: updated,
         }
     }
 
@@ -53,8 +53,16 @@ pub mod post_preview {
     }
 }
 
+/// A page of items together with the total number of matches (ignoring pagination).
+#[derive(Debug, Clone, Serialize)]
+pub struct Totalled<T> {
+    pub items: T,
+    pub total: u64,
+}
+
 mod totalled {
-    use post_archiver::{*, query::Totalled};
+    use super::Totalled;
+    use post_archiver::*;
 
     use crate::api::relation::RequireRelations;
 

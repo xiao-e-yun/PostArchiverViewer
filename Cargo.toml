@@ -6,7 +6,8 @@ edition = "2024"
 [features]
 default = []
 [dependencies]
-post-archiver = { version = "0.5.6", features = ["utils", "typescript"] }
+# TODO: switch back to a version once 0.6 is published
+post-archiver = { path = "../../workspace/post-archiver", features = ["typescript"] }
 axum = { version = "0.8.1", features = [ "macros" ] }
 axum-reverse-proxy = "0.5.1"
 mime_guess = "2.0.5"

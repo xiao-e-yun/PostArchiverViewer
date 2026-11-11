@@ -1,7 +1,8 @@
 use std::{collections::HashSet, fmt::Debug, hash::Hash};
 
 use post_archiver::{
-    Author, AuthorId, Collection, CollectionId, FileMeta, FileMetaId, Platform, PlatformId, Tag, TagId, manager::PostArchiverManager, query::FromQuery, utils::AsTable
+    Author, AuthorId, Collection, CollectionId, FileMeta, FileMetaId, Platform, PlatformId, Tag,
+    TagId, manager::PostArchiverManager, query::FromQuery, utils::AsTable,
 };
 use rusqlite::Connection;
 use serde::Serialize;
@@ -33,7 +34,7 @@ pub struct WithRelations<T: Debug> {
 
 impl<T: Debug + RequireRelations> WithRelations<T> {
     pub fn new(manager: &PostArchiverManager, inner: T) -> Result<Self, rusqlite::Error> {
-        let conn = manager.conn();
+        let conn = &manager.conn;
 
         let authors = Author::query(conn, inner.authors())?;
         let collections = Collection::query(conn, inner.collections())?;
