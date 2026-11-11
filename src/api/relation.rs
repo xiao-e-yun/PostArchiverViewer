@@ -1,149 +1,71 @@
-use std::{collections::HashSet, fmt::Debug, hash::Hash};
+use std::fmt::Debug;
 
 use post_archiver::{
-    Author, AuthorId, Collection, CollectionId, FileMeta, FileMetaId, Platform, PlatformId, Tag,
-    TagId, manager::PostArchiverManager, query::FromQuery, utils::AsTable,
+    FileMeta, FileMetaId, Platform, PlatformId, manager::PostArchiverManager,
+    query::PostArchiverQueryExt,
 };
-use rusqlite::Connection;
 use serde::Serialize;
 use ts_rs::TS;
 
-use super::category::Category;
+use super::error::ApiResult;
 
+/// Rows of `$repo` with the given ids, e.g. `by_ids!(manager, tags, tag_ids)`.
+///
+/// An empty `IdFilter` matches the whole table, so no ids means no query.
+macro_rules! by_ids {
+    ($manager:expr, $repo:ident, $ids:expr) => {{
+        let ids: std::collections::HashSet<_> = $ids.into_iter().collect();
+        if ids.is_empty() {
+            Vec::new()
+        } else {
+            use post_archiver::query::Query as _;
+            let mut query = $manager.$repo().query();
+            query.ids.extend(ids);
+            query.query()?
+        }
+    }};
+}
+pub(crate) use by_ids;
+
+/// A response plus the platforms and file metas it refers to by id,
+/// so the frontend can resolve them without extra requests.
 #[derive(Debug, Serialize, TS)]
 #[ts(export)]
 pub struct WithRelations<T: Debug> {
     #[serde(flatten)]
     pub inner: T,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    #[ts(as = "Option<Vec<Author>>", optional)]
-    pub authors: Vec<Author>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    #[ts(as = "Option<Vec<Collection>>", optional)]
-    pub collections: Vec<Collection>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
     #[ts(as = "Option<Vec<Platform>>", optional)]
     pub platforms: Vec<Platform>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    #[ts(as = "Option<Vec<Tag>>", optional)]
-    pub tags: Vec<Tag>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     #[ts(as = "Option<Vec<FileMeta>>", optional)]
     pub file_metas: Vec<FileMeta>,
 }
 
-impl<T: Debug + RequireRelations> WithRelations<T> {
-    pub fn new(manager: &PostArchiverManager, inner: T) -> Result<Self, rusqlite::Error> {
-        let conn = &manager.conn;
-
-        let authors = Author::query(conn, inner.authors())?;
-        let collections = Collection::query(conn, inner.collections())?;
-        let tags = Tag::query(conn, inner.tags())?;
-        let platforms = Platform::query(
-            conn,
-            inner
-                .platforms()
-                .into_iter()
-                .chain(tags.iter().flat_map(|t| t.platform)),
-        )?;
-        let file_metas = FileMeta::query(
-            conn,
-            inner
-                .file_metas()
-                .into_iter()
-                .chain(authors.iter().flat_map(|a| a.thumb))
-                .chain(collections.iter().flat_map(|c| c.thumb)),
-        )?;
-
-        Ok(Self {
+impl<T: Debug> WithRelations<T> {
+    pub fn new(inner: T) -> Self {
+        Self {
             inner,
-            authors,
-            collections,
-            platforms,
-            tags,
-            file_metas,
-        })
-    }
-}
-
-pub trait RequireRelations {
-    fn authors(&self) -> Vec<AuthorId> {
-        vec![]
-    }
-    fn collections(&self) -> Vec<CollectionId> {
-        vec![]
-    }
-    fn platforms(&self) -> Vec<PlatformId> {
-        vec![]
-    }
-    fn tags(&self) -> Vec<TagId> {
-        vec![]
-    }
-    fn file_metas(&self) -> Vec<FileMetaId> {
-        vec![]
-    }
-}
-
-impl<T: RequireRelations> RequireRelations for Vec<T> {
-    fn authors(&self) -> Vec<AuthorId> {
-        self.iter().flat_map(|item| item.authors()).collect()
-    }
-    fn collections(&self) -> Vec<CollectionId> {
-        self.iter().flat_map(|item| item.collections()).collect()
-    }
-    fn platforms(&self) -> Vec<PlatformId> {
-        self.iter().flat_map(|item| item.platforms()).collect()
-    }
-    fn tags(&self) -> Vec<TagId> {
-        self.iter().flat_map(|item| item.tags()).collect()
-    }
-    fn file_metas(&self) -> Vec<FileMetaId> {
-        self.iter().flat_map(|item| item.file_metas()).collect()
-    }
-}
-
-pub trait RelationTarget: Serialize + Sized {
-    type Id: Serialize + Debug + Eq + Hash;
-    const TABLE_NAME: &'static str;
-
-    fn from_row(row: &rusqlite::Row) -> Result<Self, rusqlite::Error>;
-
-    fn query(
-        conn: &Connection,
-        ids: impl IntoIterator<Item = Self::Id>,
-    ) -> Result<Vec<Self>, rusqlite::Error> {
-        let ids: HashSet<Self::Id> = ids.into_iter().collect();
-        if ids.is_empty() {
-            return Ok(vec![]);
+            platforms: Vec::new(),
+            file_metas: Vec::new(),
         }
-
-        let mut stmt = conn.prepare_cached(&format!(
-            "SELECT * FROM {} WHERE id IN (SELECT value FROM json_each(?))",
-            Self::TABLE_NAME
-        ))?;
-
-        let rows = stmt.query_map([serde_json::to_string(&ids).unwrap()], |row| {
-            Self::from_row(row)
-        })?;
-
-        rows.collect()
     }
-}
 
-impl<T: Category> RelationTarget for T {
-    type Id = T::Id;
-    const TABLE_NAME: &'static str = T::TABLE_NAME;
-
-    fn from_row(row: &rusqlite::Row) -> Result<Self, rusqlite::Error> {
-        T::from_row(row)
+    pub fn platforms(
+        mut self,
+        manager: &PostArchiverManager,
+        ids: impl IntoIterator<Item = PlatformId>,
+    ) -> ApiResult<Self> {
+        self.platforms = by_ids!(manager, platforms, ids);
+        Ok(self)
     }
-}
 
-impl RelationTarget for FileMeta {
-    type Id = FileMetaId;
-    const TABLE_NAME: &'static str = <FileMeta as AsTable>::TABLE_NAME;
-
-    fn from_row(row: &rusqlite::Row) -> Result<Self, rusqlite::Error> {
-        <FileMeta as FromQuery>::from_row(row)
+    pub fn file_metas(
+        mut self,
+        manager: &PostArchiverManager,
+        ids: impl IntoIterator<Item = FileMetaId>,
+    ) -> ApiResult<Self> {
+        self.file_metas = by_ids!(manager, file_metas, ids);
+        Ok(self)
     }
 }

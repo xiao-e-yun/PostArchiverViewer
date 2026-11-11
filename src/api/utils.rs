@@ -1,5 +1,9 @@
+use post_archiver::query::{FromQuery, Pagination as QueryPagination, Query};
 use serde::{Deserialize, Serialize};
 
+use super::error::ApiResult;
+
+/// `?limit=&page=` of list endpoints.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Pagination {
     pub limit: Option<u64>,
@@ -7,16 +11,29 @@ pub struct Pagination {
 }
 
 impl Pagination {
-    pub fn limit(&self) -> u64 {
-        self.limit.unwrap_or(20)
+    pub fn to_query(&self) -> QueryPagination {
+        QueryPagination::default()
+            .limit(self.limit.unwrap_or(20))
+            .page(self.page.unwrap_or(0))
     }
-    pub fn page(&self) -> u64 {
-        self.page.unwrap_or(0)
-    }
-    pub fn params(&self) -> [(&'static str, u64); 2] {
-        let limit = self.limit();
-        let page = self.page() * limit;
-        [(":limit", limit), (":offset", page)]
+}
+
+/// A page of items together with the total number of matches (ignoring pagination).
+#[derive(Debug, Clone, Serialize)]
+pub struct Totalled<T> {
+    pub items: T,
+    pub total: u64,
+}
+
+impl<T> Totalled<Vec<T>> {
+    pub fn query<Q: Query>(query: &Q) -> ApiResult<Self>
+    where
+        T: FromQuery<Based = Q::Source>,
+    {
+        Ok(Self {
+            total: query.count()?,
+            items: query.query()?,
+        })
     }
 }
 
@@ -25,8 +42,6 @@ pub mod post_preview {
     use post_archiver::{FileMetaId, Post, PostId, impl_from_query};
     use serde::Serialize;
     use ts_rs::TS;
-
-    use crate::api::relation::RequireRelations;
 
     #[derive(Debug, Clone, Serialize, TS)]
     #[ts(export)]
@@ -43,44 +58,6 @@ pub mod post_preview {
             title: title,
             thumb: thumb,
             updated: updated,
-        }
-    }
-
-    impl RequireRelations for PostPreview {
-        fn file_metas(&self) -> Vec<FileMetaId> {
-            self.thumb.into_iter().collect()
-        }
-    }
-}
-
-/// A page of items together with the total number of matches (ignoring pagination).
-#[derive(Debug, Clone, Serialize)]
-pub struct Totalled<T> {
-    pub items: T,
-    pub total: u64,
-}
-
-mod totalled {
-    use super::Totalled;
-    use post_archiver::*;
-
-    use crate::api::relation::RequireRelations;
-
-    impl<T: RequireRelations> RequireRelations for Totalled<T> {
-        fn authors(&self) -> Vec<AuthorId> {
-            self.items.authors()
-        }
-        fn collections(&self) -> Vec<CollectionId> {
-            self.items.collections()
-        }
-        fn platforms(&self) -> Vec<PlatformId> {
-            self.items.platforms()
-        }
-        fn tags(&self) -> Vec<TagId> {
-            self.items.tags()
-        }
-        fn file_metas(&self) -> Vec<FileMetaId> {
-            self.items.file_metas()
         }
     }
 }

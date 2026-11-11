@@ -33,10 +33,7 @@ export function useRelations<T>(
     const toMap = <T extends { id: number }>(values?: T[]) =>
       new Map(values ? values.map((v) => [v.id, v]) : []);
     const maps = {
-      authors: toMap(relations.authors),
-      collections: toMap(relations.collections),
       platforms: toMap(relations.platforms),
-      tags: toMap(relations.tags),
       fileMetas: toMap(relations.file_metas),
     };
 

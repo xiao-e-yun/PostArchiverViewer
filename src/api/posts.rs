@@ -1,13 +1,14 @@
-use axum::{Json, Router, extract::State, http::StatusCode, routing::get};
+use axum::{Json, Router, extract::State, routing::get};
 use axum_extra::extract::Query;
 use post_archiver::{
-    AuthorId, CollectionId, PlatformId, TagId,
-    query::{Pagination as QueryPagination, PostArchiverQueryExt, Query as _, post::PostSort},
+    AuthorId, CollectionId, FileMetaId, PlatformId, TagId,
+    query::{PostArchiverQueryExt, post::PostSort},
 };
 use serde::{Deserialize, Serialize};
 
 use super::{
     AppState,
+    error::ApiResult,
     post::get_post_handler,
     relation::WithRelations,
     utils::{Pagination, Totalled, post_preview::PostPreview},
@@ -48,36 +49,23 @@ pub async fn list_posts_handler(
     Query(pagination): Query<Pagination>,
     Query(searchs): Query<SearchQuery>,
     State(state): State<AppState>,
-) -> Result<Json<WithRelations<Totalled<Vec<PostPreview>>>>, StatusCode> {
+) -> ApiResult<Json<WithRelations<Totalled<Vec<PostPreview>>>>> {
     let manager = state.manager();
 
     let mut query = manager.posts().query();
-
     query.title.contains(&searchs.search);
-    query.authors.extend(searchs.authors.clone());
-    query.tags.extend(searchs.tags.clone());
-    query.collections.extend(searchs.collections.clone());
-    query.platforms.extend(searchs.platforms.clone());
-
+    query.authors.extend(searchs.authors);
+    query.tags.extend(searchs.tags);
+    query.collections.extend(searchs.collections);
+    query.platforms.extend(searchs.platforms);
     match searchs.order_by {
         PostOrderBy::Id => query.order.desc(PostSort::Id),
         PostOrderBy::Updated => query.order.desc(PostSort::Updated),
         PostOrderBy::Random => query.order.random(),
     };
-    query.pagination = QueryPagination::default()
-        .limit(pagination.limit())
-        .page(pagination.page());
+    query.pagination = pagination.to_query();
 
-    let total = query
-        .count()
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let items = query
-        .query::<PostPreview>()
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let result = Totalled { items, total };
-
-    // Cache the total if it was not cached before
-    WithRelations::new(&manager, result)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
-        .map(Json::from)
+    let page = Totalled::<Vec<PostPreview>>::query(&query)?;
+    let thumbs: Vec<FileMetaId> = page.items.iter().filter_map(|p| p.thumb).collect();
+    Ok(Json(WithRelations::new(page).file_metas(&manager, thumbs)?))
 }

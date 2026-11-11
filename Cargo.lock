@@ -1911,7 +1911,6 @@ dependencies = [
  "axum",
  "axum-extra",
  "axum-reverse-proxy",
- "cached",
  "chrono",
  "clap",
  "console",

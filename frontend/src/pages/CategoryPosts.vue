@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useLazyLoad } from "@/lazyload";
 import { useFetchWithCache, useRelations } from "@/utils";
 import type { WithRelations } from "@api/WithRelations";
+import type { AuthorResponse } from "@api/AuthorResponse";
 import { useRouteParams } from "@vueuse/router";
 import { computed } from "vue";
 import PageTitle from "@/components/utils/PageTitle.vue";
@@ -22,7 +23,7 @@ const props = defineProps<CategoryPostsContext>();
 const id = useRouteParams("id", "0", { transform: Number });
 
 const url = computed(() => `/api/${props.category}/${id.value}`);
-const { data } = useFetchWithCache<WithRelations<Category>>(
+const { data } = useFetchWithCache<WithRelations<Category | AuthorResponse>>(
   "category-meta",
   url,
 );
@@ -44,7 +45,11 @@ const relations = useRelations(data);
         <h1 class="text-lg mt-1">{{ props.category }}</h1>
       </RouterLink>
       <div class="flex justify-end gap-2 w-full h-6">
-        <AuthorAliases v-if="props.category === 'authors'" :id="id" />
+        <AuthorAliases
+          v-if="'aliases' in data"
+          :aliases="data.aliases"
+          :platforms="relations.platforms"
+        />
         <Badge v-if="'source' in data!">
           <a v-if="data.source" :href="data.source"> Source </a>
         </Badge>

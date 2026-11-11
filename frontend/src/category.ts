@@ -105,7 +105,7 @@ export class AuthorCategory implements Category {
     this.id = author.id;
     this.name = author.name;
     this.updated = author.updated;
-    this.thumb = getRelations(author.id, "file_metas", relations);
+    this.thumb = getRelations(author.thumb, "file_metas", relations);
   }
 
   id: number;
@@ -197,12 +197,7 @@ export const categoryBuilders: CategoryStatic[] = [
   CollectionCategory,
 ] as const;
 
-export type RelationType =
-  | "file_metas"
-  | "platforms"
-  | "tags"
-  | "authors"
-  | "collections";
+export type RelationType = "file_metas" | "platforms";
 export function getRelations(
   id: number | null,
   relation: "file_metas",
@@ -213,27 +208,12 @@ export function getRelations(
   relation: "platforms",
   relations: Relations,
 ): Platform | null;
-export function getRelations(
-  id: number | null,
-  relation: "tags",
-  relations: Relations,
-): Tag | null;
-export function getRelations(
-  id: number | null,
-  relation: "authors",
-  relations: Relations,
-): Author | null;
-export function getRelations(
-  id: number | null,
-  relation: "collections",
-  relations: Relations,
-): Collection | null;
 
 export function getRelations(
   id: number | null,
   relation: RelationType,
   relations: Relations,
-): FileMeta | Platform | Tag | Author | Collection | null {
+): FileMeta | Platform | null {
   if (id === null) return null;
   return relations[relation]?.find((fm) => fm.id === id) ?? null;
 }
@@ -242,7 +222,4 @@ export type WithRelations<T> = T & Relations;
 export interface Relations {
   file_metas?: FileMeta[];
   platforms?: Platform[];
-  tags?: Tag[];
-  authors?: Author[];
-  collections?: Collection[];
 }

@@ -1,30 +1,25 @@
 <script lang="ts" setup>
 import { computed } from "vue";
 import DoubleBadge from "./DoubleBadge.vue";
-import type { WithRelations } from "@api/WithRelations";
-import type { Alias } from "post-archiver";
-import { useFetchWithCache, useRelations } from "@/utils";
-import type { Totalled } from "@/api";
+import type { Alias, Platform } from "post-archiver";
 
-const props = defineProps<{ id: number }>();
+const props = defineProps<{
+  aliases: Alias[];
+  platforms: Map<number, Platform>;
+}>();
 
-const url = computed(() => `/api/authors/${props.id}/aliases`);
-const { data } = useFetchWithCache<WithRelations<Totalled<Alias[]>>>(
-  "aliases",
-  url,
-);
-const relations = useRelations(data);
-
-const aliases = computed<Alias[]>(() => data.value?.items || []);
 const aliasesWithPlatforms = computed(() =>
-  aliases.value.map((a) => [a, getPlatform(a)] as const),
+  props.aliases.map((alias) => {
+    const platform = props.platforms.get(alias.platform);
+    return [
+      alias,
+      {
+        name: platform?.name ?? "Unknown",
+        link: platform && `/platforms/${platform.id}`,
+      },
+    ] as const;
+  }),
 );
-
-const getPlatform = (alias: Alias) => {
-  const platforms = relations.platforms;
-  const platform = platforms.get(alias.platform)!;
-  return { name: platform.name, link: `/platforms/${platform.id}` };
-};
 </script>
 
 <template>
