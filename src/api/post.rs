@@ -13,7 +13,7 @@ use ts_rs::TS;
 use super::{
     AppState,
     error::{ApiError, ApiResult},
-    relation::{WithRelations, by_ids},
+    relation::WithRelations,
 };
 
 #[derive(Debug, Clone, Serialize, TS)]
@@ -76,9 +76,9 @@ pub async fn get_post_handler(
     let manager = state.manager();
 
     let post: PostDetail = manager.posts().get(id)?.ok_or(ApiError::NotFound)?;
-    let tags: Vec<Tag> = by_ids!(manager, tags, post.tags);
-    let authors: Vec<Author> = by_ids!(manager, authors, post.authors);
-    let collections: Vec<Collection> = by_ids!(manager, collections, post.collections);
+    let tags: Vec<Tag> = manager.tags().get_many(post.tags)?;
+    let authors: Vec<Author> = manager.authors().get_many(post.authors)?;
+    let collections: Vec<Collection> = manager.collections().get_many(post.collections)?;
 
     let platforms: Vec<PlatformId> = post
         .platform
