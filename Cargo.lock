@@ -1894,7 +1894,9 @@ dependencies = [
 
 [[package]]
 name = "post-archiver"
-version = "0.0.0"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a5fabe6e0026ff769182d00df0e823a3a38a267fe3cd486c4789261f35cad355"
 dependencies = [
  "chrono",
  "rusqlite",
