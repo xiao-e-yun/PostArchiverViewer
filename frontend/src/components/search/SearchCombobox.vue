@@ -63,7 +63,7 @@ const pushKeyword = (category: Category) => {
         class="h-full"
       />
     </ComboboxAnchor>
-    <ComboboxList align="start" class="w-[100%]" hide-when-detached>
+    <ComboboxList align="start" class="w-full" hide-when-detached>
       <ComboboxItem
         v-for="hint in hints"
         :key="hint.id"

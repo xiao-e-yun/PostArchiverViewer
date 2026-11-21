@@ -403,7 +403,7 @@ onUnmounted(() => {
                 class="p-4 h-full"
               >
                 <pre
-                  class="text-sm font-mono whitespace-pre-wrap break-words bg-muted p-4 rounded-md overflow-auto max-h-full"
+                  class="text-sm font-mono whitespace-pre-wrap wrap-break-word bg-muted p-4 rounded-md overflow-auto max-h-full"
                   >{{ previewContent }}</pre
                 >
               </div>

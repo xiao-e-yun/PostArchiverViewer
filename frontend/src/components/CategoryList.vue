@@ -57,13 +57,13 @@ const categoryPrefix = Object.fromEntries(
         <Skeleton
           v-for="i in props.limit ?? itemPrePage"
           :key="i"
-          class="aspect-video box-content [.inline-list>&:nth-child(n+3)]:max-md:hidden [.inline-list>&:nth-child(n+4)]:max-xl:hidden [.inline-list>&:nth-child(n+5)]:max-2xl:hidden [.inline-list>&:nth-child(n+6)]:hidden"
+          class="aspect-video box-content max-md:[.inline-list>&:nth-child(n+3)]:hidden max-xl:[.inline-list>&:nth-child(n+4)]:hidden max-2xl:[.inline-list>&:nth-child(n+5)]:hidden [.inline-list>&:nth-child(n+6)]:hidden"
         />
       </template>
       <Card
         v-for="item in list"
         :key="item.id"
-        class="transition-transform hover:scale-105 hover:z-10 relative w-full h-full dark:bg-secondary [.inline-list>&:nth-child(n+3)]:max-md:hidden [.inline-list>&:nth-child(n+4)]:max-xl:hidden [.inline-list>&:nth-child(n+5)]:max-2xl:hidden [.inline-list>&:nth-child(n+6)]:hidden"
+        class="transition-transform hover:scale-105 hover:z-10 relative w-full h-full dark:bg-secondary max-md:[.inline-list>&:nth-child(n+3)]:hidden max-xl:[.inline-list>&:nth-child(n+4)]:hidden max-2xl:[.inline-list>&:nth-child(n+5)]:hidden [.inline-list>&:nth-child(n+6)]:hidden"
         as-child
       >
         <RouterLink :to="`/${category}/${item.id}`">
@@ -122,7 +122,7 @@ const categoryPrefix = Object.fromEntries(
         <Skeleton
           v-for="i in props.limit ?? itemPrePage"
           :key="i"
-          class="h-[32px] md:h-[44px] [.inline-list>&:nth-child(n+4)]:max-md:hidden [.inline-list>&:nth-child(n+5)]:max-xl:hidden [.inline-list>&:nth-child(n+7)]:hidden"
+          class="h-[32px] md:h-[44px] max-md:[.inline-list>&:nth-child(n+4)]:hidden max-xl:[.inline-list>&:nth-child(n+5)]:hidden [.inline-list>&:nth-child(n+7)]:hidden"
         />
       </template>
       <RouterLink

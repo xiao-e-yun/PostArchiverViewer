@@ -137,6 +137,7 @@ onBeforeRouteLeave(() => {
               props.class,
             )
           "
+          @open-auto-focus.prevent
           @interact-outside="
             (event) => {
               const isSideButton =
@@ -156,7 +157,7 @@ onBeforeRouteLeave(() => {
           </DialogClose>
 
           <div
-            class="fixed bottom-5 left-3 z-[100] bg-background p-1 text-base rounded-md flex border"
+            class="fixed bottom-5 left-3 z-100 bg-background p-1 text-base rounded-md flex border"
           >
             <div class="flex gap-1 items-center">
               <Search

@@ -41,13 +41,13 @@ const props = withDefaults(
         <Skeleton
           v-for="i in props.limit ?? itemPrePage"
           :key="i"
-          class="aspect-square box-content [.inline-list>&:nth-child(n+3)]:max-md:hidden [.inline-list>&:nth-child(n+4)]:max-xl:hidden [.inline-list>&:nth-child(n+5)]:max-2xl:hidden [.inline-list>&:nth-child(n+6)]:hidden"
+          class="aspect-square box-content max-md:[.inline-list>&:nth-child(n+3)]:hidden max-xl:[.inline-list>&:nth-child(n+4)]:hidden max-2xl:[.inline-list>&:nth-child(n+5)]:hidden [.inline-list>&:nth-child(n+6)]:hidden"
         />
       </template>
       <Card
         v-for="post in list"
         :key="post.id"
-        class="transition-transform hover:scale-105 hover:z-10 relative w-full h-full overflow-hidden dark:bg-secondary [.inline-list>&:nth-child(n+3)]:max-md:hidden [.inline-list>&:nth-child(n+4)]:max-xl:hidden [.inline-list>&:nth-child(n+5)]:max-2xl:hidden [.inline-list>&:nth-child(n+6)]:hidden"
+        class="transition-transform hover:scale-105 hover:z-10 relative w-full h-full overflow-hidden dark:bg-secondary max-md:[.inline-list>&:nth-child(n+3)]:hidden max-xl:[.inline-list>&:nth-child(n+4)]:hidden max-2xl:[.inline-list>&:nth-child(n+5)]:hidden [.inline-list>&:nth-child(n+6)]:hidden"
         as-child
       >
         <RouterLink :to="`/posts/${post.id}`">
