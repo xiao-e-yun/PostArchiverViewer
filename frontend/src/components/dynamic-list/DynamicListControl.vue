@@ -21,15 +21,16 @@ import {
 } from "../ui/select";
 import { Button } from "../ui/button";
 import { useRouter } from "vue-router";
+import type { AcceptableValue } from "reka-ui";
 
 const { total, pending, pageIndex, itemsPrePage, isFixedLimit } = inject(
   dynamicListControlKey,
 )!;
 
 const { smallMode, siblingCount } = useDynamicListControlUtils();
-const postsPrePageSelectValue = computed({
+const postsPrePageSelectValue = computed<AcceptableValue | undefined>({
   get: () => itemsPrePage.value?.toString(),
-  set: (value: string) => (itemsPrePage.value = parseInt(value)),
+  set: (value) => (itemsPrePage.value = parseInt(String(value))),
 });
 
 const router = useRouter();
@@ -67,7 +68,7 @@ function updatePageIndex(page: number) {
         :total="total"
         :sibling-count="siblingCount"
         :show-edges="!smallMode"
-        :items-per-page="itemsPrePage"
+        :items-per-page="itemsPrePage ?? 20"
         @update:page="updatePageIndex"
       >
         <PaginationList v-slot="{ items }" class="flex items-center gap-1">
