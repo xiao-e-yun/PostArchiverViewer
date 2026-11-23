@@ -56,7 +56,9 @@ export function getFileMetaPath(
     : (config.resource_url ?? "/resource");
   return (
     url.replace(/\/$/, "") +
-    `/${Math.floor(fileMeta.post / 2048)}/${fileMeta.post % 2048}/${fileMeta.filename}`
+    `/${Math.floor(fileMeta.post / 2048)}/${fileMeta.post % 2048}/` +
+    // A filename may contain `#`, `?` or `%`, which would end or mangle the path.
+    encodeURIComponent(fileMeta.filename)
   );
 }
 
