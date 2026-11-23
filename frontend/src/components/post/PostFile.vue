@@ -5,7 +5,8 @@ import DialogImage from "../DialogImage.vue";
 import DialogTrigger from "../ui/dialog/DialogTrigger.vue";
 import DynamicImage from "../image/DynamicImage.vue";
 import { Badge } from "../ui/badge";
-import { ArrowDown, File, FolderArchive } from "lucide-vue-next";
+import { File, FolderArchive } from "lucide-vue-next";
+import FileCard from "./FileCard.vue";
 import { getFileMetaPath } from "@/utils";
 import { computed, inject, ref } from "vue";
 import { postImagesKey } from "./utils";
@@ -33,10 +34,6 @@ function hasExtra(extra: FileMeta["extra"]) {
   return extra && (extra.width || extra.height);
 }
 
-function getExt(file: FileMeta) {
-  return file.filename.slice(file.filename.indexOf("."));
-}
-
 function isZipFile(file: FileMeta) {
   return (
     file.mime === "application/zip" ||
@@ -44,6 +41,11 @@ function isZipFile(file: FileMeta) {
     file.filename.toLowerCase().endsWith(".zip")
   );
 }
+
+/** Shown as a file card rather than inline media; full width on phones. */
+const isAttachment = computed(
+  () => !/^(image|video|audio)\//.test(props.file.mime),
+);
 
 const index = ref<FileMeta | null>(null);
 function switchImage(prev: boolean) {
@@ -73,6 +75,7 @@ const zipViewerOpen = ref(false);
 <template>
   <Card
     class="m-auto overflow-hidden max-h-[80vh] max-w-full relative"
+    :class="{ 'max-sm:w-full': isAttachment }"
     :style="getStyleByFileExtra(file.extra)"
   >
     <template v-if="file.mime.startsWith('image/')">
@@ -133,35 +136,11 @@ const zipViewerOpen = ref(false);
       <ZipViewer v-model:open="zipViewerOpen" :src="getFileMetaPath(file)" />
     </div>
 
-    <div v-else class="sm:w-72 flex flex-col items-center p-4 gap-2 relative">
-      <div class="w-full h-full relative">
-        <File class="w-full h-full" />
-        <div
-          v-for="ext in getExt(file)"
-          :key="ext"
-          class="absolute inset-y-9 inset-x-16 pt-20 text-center hidden sm:visible"
-        >
-          <span v-if="ext.length <= 3" class="text-6xl capitalize">
-            {{ ext }}
-          </span>
-          <span
-            v-else
-            class="block w-full text-4xl capitalize text-ellipsis overflow-hidden"
-          >
-            {{ ext }}
-          </span>
-        </div>
-      </div>
-      <a
-        target="_blank"
-        :href="getFileMetaPath(file)"
-        rel="noopener noreferrer"
-      >
-        <Badge class="py-1 px-2">
-          <ArrowDown class="h-4" />
-          {{ file.filename }}
-        </Badge>
-      </a>
-    </div>
+    <FileCard
+      v-else
+      :name="file.filename"
+      :href="getFileMetaPath(file)"
+      :icon="File"
+    />
   </Card>
 </template>

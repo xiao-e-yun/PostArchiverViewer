@@ -63,7 +63,7 @@ provide(
 
 <template>
   <div class="p-4 lg:w-[1024px] mx-auto md:border-x md:px-6">
-    <div class="flex flex-col gap-4" :class="$style.content">
+    <div class="flex flex-col gap-4">
       <template v-if="!post">
         <Skeleton style="width: 89%; height: 1em" />
         <Skeleton style="width: 26%; height: 1em" />
@@ -73,7 +73,7 @@ provide(
       </template>
       <template v-for="content in contents" v-else :key="content">
         <!-- eslint-disable vue/no-v-html -->
-        <div v-if="isHtml(content)" v-html="content" />
+        <div v-if="isHtml(content)" :class="$style.content" v-html="content" />
         <!--eslint-enable-->
         <PostFile v-else :file="content" @vue:mounted="update" />
       </template>
