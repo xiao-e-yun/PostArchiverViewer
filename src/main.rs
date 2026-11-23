@@ -4,7 +4,10 @@ pub mod frontend;
 pub mod resource;
 
 use api::get_api_router;
-use axum::http::{HeaderValue, header::X_CONTENT_TYPE_OPTIONS};
+use axum::http::{
+    HeaderValue,
+    header::{ACCEPT_RANGES, CONTENT_LENGTH, CONTENT_RANGE, ETAG, RANGE, X_CONTENT_TYPE_OPTIONS},
+};
 use clap::Parser;
 use config::Config;
 use console::style;
@@ -70,7 +73,14 @@ async fn main() {
         .layer(
             ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())
-                .layer(CorsLayer::new().allow_origin(Any))
+                .layer(
+                    // Range requests let the frontend read zip entries
+                    // without downloading the whole archive.
+                    CorsLayer::new()
+                        .allow_origin(Any)
+                        .allow_headers([RANGE])
+                        .expose_headers([CONTENT_RANGE, CONTENT_LENGTH, ACCEPT_RANGES, ETAG]),
+                )
                 .layer(SetResponseHeaderLayer::overriding(
                     X_CONTENT_TYPE_OPTIONS,
                     HeaderValue::from_static("nosniff"),
