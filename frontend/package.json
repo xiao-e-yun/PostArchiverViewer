@@ -32,6 +32,7 @@
     "@types/node": "^22.13.8",
     "@vueuse/core": "^13.9.0",
     "@vueuse/router": "^13.4.0",
+    "@zip.js/zip.js": "^2.25.0",
     "baseline-browser-mapping": "^2.10.0",
     "caniuse-lite": "^1.0.30001774",
     "class-variance-authority": "^0.7.1",

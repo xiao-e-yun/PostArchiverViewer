@@ -24,6 +24,10 @@ import Random from "./pages/Random.vue";
     { path: "/", component: Home },
     { path: "/posts", component: Posts },
     { path: "/posts/:id", component: Post },
+    {
+      path: "/posts/:id/files/:filename",
+      component: () => import("./pages/ZipFile.vue"),
+    },
     { path: "/random", component: Random },
     { path: "/about", component: About },
     ...categoryRouter("author", { category: "authors" }),

@@ -47,7 +47,9 @@ export function useRelations<T>(
   });
 }
 
-export function getFileMetaPath(fileMeta: FileMeta) {
+export function getFileMetaPath(
+  fileMeta: Pick<FileMeta, "post" | "filename" | "mime">,
+) {
   const config = usePublicConfig();
   const url = fileMeta.mime.startsWith("image/")
     ? (config.images_url ?? "/images")
